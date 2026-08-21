@@ -4,6 +4,8 @@
 #include "bsp_lcd_font_chinese.h"
 #include "CH58x_common.h"          // 提供 mDelaymS
 
+#include "bsp_uart.h"
+
 // 背景色全局变量
 uint16_t BACK_COLOR = LCD_BLACK;
 
@@ -41,6 +43,22 @@ static void LCD_WR_DATA(uint16_t dat)
     SCREEN_CS_SET();
 }
 
+static void LCD_WriteDataBulk(uint16_t color, uint32_t count)
+{
+    uint8_t ch = color >> 8;
+    uint8_t cl = color & 0xFF;
+
+    SCREEN_CS_CLR();      // 只拉低一次
+    SCREEN_DC_SET();      // 只设置一次
+
+    while (count--) {
+        SPI0_MasterSendByte(ch);
+        SPI0_MasterSendByte(cl);
+    }
+
+    SCREEN_CS_SET();      // 最后再拉高
+}
+
 // 设置窗口地址
 static void LCD_Address_Set(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 {
@@ -60,22 +78,24 @@ static void LCD_Address_Set(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 // LCD初始化
 void Lcd_Init(void)
 {
-    // 初始化SPI（由bsp_spi_init完成，但需确保调用）
-    //bsp_spi_init();
-    // 设置SPI模式为模式0，高位在前（CH58x默认，但显式配置）
-    //SPI0_DataMode(Mode0_HighBitINFront);
-    // bsp_spi_set_speed(4000000);   // 8MHz，可根据需要调整
-
+    SCREEN_BLC_CLR();
     // 复位
     SCREEN_RST_CLR();
     // 关闭片选、DC默认高
     SCREEN_CS_SET();
     SCREEN_DC_SET();
 
+    // ---- 复位 LCD ----
+    SCREEN_RST_SET();
+    mDelaymS(20);
+    SCREEN_RST_CLR();       // 拉低复位
+    mDelaymS(20);
+    SCREEN_RST_SET();       // 拉高，结束复位
+    mDelaymS(100);          // 等待内部稳定
+
     // ---- ST7789V 初始化序列 (与STM32代码一致) ----
     LCD_WR_REG(0x11);
     mDelaymS(480);
-
     // 设置方向
     LCD_WR_REG(0x36);
     if (USE_HORIZONTAL == 0)      LCD_WR_DATA8(0x00);
@@ -143,31 +163,61 @@ void Lcd_Init(void)
     LCD_WR_DATA8(0x2F); LCD_WR_DATA8(0x31);
 
     LCD_WR_REG(0x29);             // 显示开
+
     SCREEN_BLC_SET();             // 点亮背光
 }
 
-// 清屏
+// 发送一块颜色数据（连续 count 个像素，每个像素 16 位）
+// 该函数会先设置 CS=0, DC=1，发送完后恢复 CS=1
+static void LCD_WriteDataBlock(uint16_t color, uint32_t count)
+{
+    if (count == 0) return;
+
+    uint8_t hi = color >> 8;
+    uint8_t lo = color & 0xFF;
+
+    // 只切换一次 CS 和 DC
+    SCREEN_CS_CLR();
+    SCREEN_DC_SET();
+
+    // 为了提高效率，可以将颜色字节对填充到一个缓冲区，然后一次发送
+    // 这里使用一个较小的静态缓冲区，避免占用过多栈空间
+    static uint8_t buf[64];  // 32 像素 * 2 字节 = 64 字节
+    uint32_t i = 0;
+    while (i < count) {
+        uint32_t chunk = count - i;
+        if (chunk > 32) chunk = 32;  // 每次发送 32 个像素
+
+        // 填充缓冲区
+        uint16_t idx = 0;
+        for (uint32_t j = 0; j < chunk; j++) {
+            buf[idx++] = hi;
+            buf[idx++] = lo;
+        }
+
+        bsp_spi_send_bulk(buf, chunk * 2);
+        i += chunk;
+    }
+
+    SCREEN_CS_SET();
+}
+
+// 优化后的快速清屏/填充函数
 void LCD_Clear(uint16_t Color)
 {
-    uint16_t i, j;
+    uint32_t total_pixels = (uint32_t)LCD_W * LCD_H;
     LCD_Address_Set(0, 0, LCD_W - 1, LCD_H - 1);
-    for (i = 0; i < LCD_W; i++) {
-        for (j = 0; j < LCD_H; j++) {
-            LCD_WR_DATA(Color);
-        }
-    }
+    LCD_WriteDataBlock(Color, total_pixels);
 }
 
 // 填充矩形
 void LCD_Fill(uint16_t xsta, uint16_t ysta, uint16_t xend, uint16_t yend, uint16_t color)
 {
-    uint16_t i, j;
+    uint16_t width = xend - xsta + 1;
+    uint16_t height = yend - ysta + 1;
+    uint32_t total = (uint32_t)width * height;
     LCD_Address_Set(xsta, ysta, xend, yend);
-    for (i = ysta; i <= yend; i++) {
-        for (j = xsta; j <= xend; j++) {
-            LCD_WR_DATA(color);
-        }
-    }
+    LCD_WriteDataBlock(color, total);
 }
 
 // 画点
@@ -248,29 +298,35 @@ void Draw_Circle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color)
     }
 }
 
-// 显示ASCII字符（16x8）
 void LCD_ShowChar(uint16_t x, uint16_t y, uint8_t num, uint8_t mode, uint16_t color)
 {
     uint8_t temp, pos, t;
-    uint16_t x0 = x;
     if (x > LCD_W - 16 || y > LCD_H - 16) return;
 
     num -= ' ';
     LCD_Address_Set(x, y, x + 8 - 1, y + 16 - 1);
 
-    if (!mode) {   // 非叠加模式（清背景）
+    if (!mode) {   // 非叠加模式
+        // 缓冲区：16 行 × 8 列 × 2 字节 = 256 字节
+        static uint8_t charBuf[256];
+        uint16_t idx = 0;
+
         for (pos = 0; pos < 16; pos++) {
             temp = asc2_1608[(uint16_t)num * 16 + pos];
             for (t = 0; t < 8; t++) {
-                if (temp & 0x01) LCD_WR_DATA(color);
-                else LCD_WR_DATA(BACK_COLOR);
+                uint16_t c = (temp & 0x01) ? color : BACK_COLOR;
+                charBuf[idx++] = c >> 8;
+                charBuf[idx++] = c & 0xFF;
                 temp >>= 1;
-                x++;
             }
-            x = x0;
-            y++;
         }
-    } else {      // 叠加模式（仅画点）
+
+        // 切换 CS/DC 一次，发送所有数据
+        SCREEN_CS_CLR();
+        SCREEN_DC_SET();
+        bsp_spi_send_bulk(charBuf, 256);
+        SCREEN_CS_SET();
+    } else {      // 叠加模式：逐点画（使用原有方式，但也可优化）
         for (pos = 0; pos < 16; pos++) {
             temp = asc2_1608[(uint16_t)num * 16 + pos];
             for (t = 0; t < 8; t++) {

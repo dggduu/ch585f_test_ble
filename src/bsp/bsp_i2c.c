@@ -1,155 +1,225 @@
 #include "bsp_i2c.h"
-#include "CH58x_common.h"
 
-/* 引脚定义：SCL=PB13, SDA=PB12 */
-#define I2C_SCL_PIN   GPIO_Pin_13
-#define I2C_SDA_PIN   GPIO_Pin_12
+#define I2C_TIMEOUT_COUNT  10000
 
-/* 方向宏：切换为输入（释放总线）或输出（拉低） */
-#define SCL_OUT()     GPIOB_ModeCfg(I2C_SCL_PIN, GPIO_ModeOut_PP_5mA)
-#define SDA_OUT()     GPIOB_ModeCfg(I2C_SDA_PIN, GPIO_ModeOut_PP_5mA)
-#define SDA_IN()      GPIOB_ModeCfg(I2C_SDA_PIN, GPIO_ModeIN_PU)
-
-/* 电平操作 */
-#define SCL_HIGH()    GPIOB_SetBits(I2C_SCL_PIN)
-#define SCL_LOW()     GPIOB_ResetBits(I2C_SCL_PIN)
-#define SDA_HIGH()    GPIOB_SetBits(I2C_SDA_PIN)
-#define SDA_LOW()     GPIOB_ResetBits(I2C_SDA_PIN)
-#define SDA_READ()    (GPIOB_ReadPortPin(I2C_SDA_PIN) != 0)
-
-/* 延时函数（约 5?s @ 32MHz，可调整） */
-static void I2C_Delay(void) {
-    for(volatile int i = 0; i < 30; i++) __nop();
+/* 私有辅助函数：清除 ADDR 标志位 */
+static inline void i2c_clear_addr_flag(void)
+{
+    (void)R16_I2C_STAR1;
+    (void)R16_I2C_STAR2;
 }
 
-/* ---------- 起始/停止 ---------- */
-static void I2C_Start(void) {
-    SDA_OUT();
-    SCL_OUT();
-    SDA_HIGH();
-    SCL_HIGH();
-    I2C_Delay();
-    SDA_LOW();
-    I2C_Delay();
-    SCL_LOW();
-    I2C_Delay();
+/* 初始化 I2C 外设 */
+void bsp_i2c_init(void)
+{
+    // 如果硬件配置涉及引脚重映射，在此开启（如不需要可注释掉）
+    // GPIOPinRemap(ENABLE, RB_PIN_I2C);
+
+    // 配置引脚为带上拉输入模式（由硬件 I2C 控制引脚）
+    GPIOB_ModeCfg(I2C_SCL_PIN | I2C_SDA_PIN, GPIO_ModeIN_PU);
+
+    // 禁用 I2C 中断，完全采用阻塞轮询机制
+    PFIC_DisableIRQ(I2C_IRQn);
+    I2C_ITConfig(I2C_IT_BUF | I2C_IT_EVT | I2C_IT_ERR, DISABLE);
+
+    // 初始化硬件 I2C 主机模式（100kHz 标准模式，可根据需要提升至 400000）
+    I2C_Init(I2C_Mode_I2C, 400000, I2C_DutyCycle_16_9, I2C_Ack_Enable,
+             I2C_AckAddr_7bit, 0x00);
 }
 
-static void I2C_Stop(void) {
-    SDA_OUT();
-    SCL_LOW();
-    SDA_LOW();
-    I2C_Delay();
-    SCL_HIGH();
-    I2C_Delay();
-    SDA_HIGH();
-    I2C_Delay();
-}
+/* 探测设备地址 */
+uint8_t bsp_i2c_probe(uint8_t dev_addr)
+{
+    uint32_t timeout = I2C_TIMEOUT_COUNT;
+    uint8_t ack_received = 0;
 
-/* ---------- 写一个字节，返回 ACK 位（0=ACK, 1=NACK） ---------- */
-static uint8_t I2C_WriteByte(uint8_t data) {
-    SDA_OUT();
-    for(uint8_t i = 0; i < 8; i++) {
-        if(data & 0x80) SDA_HIGH();
-        else SDA_LOW();
-        data <<= 1;
-        I2C_Delay();
-        SCL_HIGH();
-        I2C_Delay();
-        SCL_LOW();
-        I2C_Delay();
+    while(I2C_GetFlagStatus(I2C_FLAG_BUSY) && --timeout);
+    if(timeout == 0) return 1;
+
+    I2C_GenerateSTART(ENABLE);
+    timeout = I2C_TIMEOUT_COUNT;
+    while(!I2C_CheckEvent(I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
+    if(timeout == 0) {
+        I2C_GenerateSTOP(ENABLE);
+        return 1;
     }
-    // 释放 SDA，读取 ACK
-    SDA_IN();   // 切换为输入
-    SCL_HIGH();
-    I2C_Delay();
-    uint8_t ack = SDA_READ();   // 0=ACK, 1=NACK
-    SCL_LOW();
-    I2C_Delay();
-    SDA_OUT();  // 恢复输出
-    return ack;
-}
 
-/* ---------- 读一个字节，并发送 ACK(0) 或 NACK(1) ---------- */
-static uint8_t I2C_ReadByte(uint8_t ack) {
-    uint8_t data = 0;
-    SDA_IN();   // 释放总线
-    for(uint8_t i = 0; i < 8; i++) {
-        data <<= 1;
-        SCL_HIGH();
-        I2C_Delay();
-        if(SDA_READ()) data |= 0x01;
-        SCL_LOW();
-        I2C_Delay();
+    I2C_Send7bitAddress(dev_addr << 1, I2C_Direction_Transmitter);
+
+    timeout = I2C_TIMEOUT_COUNT;
+    while(--timeout)
+    {
+        if(I2C_GetFlagStatus(I2C_FLAG_ADDR) == SET)
+        {
+            ack_received = 1;
+            break;
+        }
+        if(I2C_GetFlagStatus(I2C_FLAG_AF) == SET)
+        {
+            I2C_ClearFlag(I2C_FLAG_AF);
+            ack_received = 0;
+            break;
+        }
     }
-    // 发送 ACK 或 NACK
-    SDA_OUT();
-    if(ack) SDA_HIGH();   // NACK
-    else SDA_LOW();       // ACK
-    SCL_HIGH();
-    I2C_Delay();
-    SCL_LOW();
-    I2C_Delay();
-    SDA_IN();   // 释放
-    return data;
+
+    I2C_GenerateSTOP(ENABLE);
+    i2c_clear_addr_flag();
+
+    return ack_received ? 0 : 1; // 0 表示设备在线 (ACK)
 }
 
-/* ---------- 对外 API ---------- */
-
-/* 初始化：配置 GPIO 为推挽输出，初始高电平 */
-void bsp_i2c_init(void) {
-    GPIOB_ModeCfg(I2C_SCL_PIN | I2C_SDA_PIN, GPIO_ModeOut_PP_5mA);
-    SCL_HIGH();
-    SDA_HIGH();
-    I2C_Delay();
-}
-
-/* 写寄存器（软件模拟） */
-uint8_t bsp_i2c_write_reg(uint8_t dev_addr, uint8_t reg, uint8_t data) {
-    I2C_Start();
-    if(I2C_WriteByte((dev_addr << 1) | 0)) { I2C_Stop(); return 1; } // 写地址
-    if(I2C_WriteByte(reg)) { I2C_Stop(); return 1; }
-    if(I2C_WriteByte(data)) { I2C_Stop(); return 1; }
-    I2C_Stop();
-    return 0;
-}
-
-/* 读寄存器（软件模拟） */
-uint8_t bsp_i2c_read_reg(uint8_t dev_addr, uint8_t reg, uint8_t *data) {
-    I2C_Start();
-    if(I2C_WriteByte((dev_addr << 1) | 0)) { I2C_Stop(); return 1; } // 写地址
-    if(I2C_WriteByte(reg)) { I2C_Stop(); return 1; }
-    I2C_Start();  // 重新起始
-    if(I2C_WriteByte((dev_addr << 1) | 1)) { I2C_Stop(); return 1; } // 读地址
-    *data = I2C_ReadByte(1);   // 读一个字节，发 NACK
-    I2C_Stop();
-    return 0;
-}
-
-/* 探测设备：发送地址+写位，检测 ACK */
-uint8_t bsp_i2c_probe(uint8_t dev_addr) {
-    I2C_Start();
-    uint8_t ack = I2C_WriteByte((dev_addr << 1) | 0);
-    I2C_Stop();
-    return ack;   // 0 表示 ACK（有设备），1 表示无响应
-}
-
-/* 扫描总线（与硬件版本完全兼容） */
-void bsp_i2c_scan(void) {
-    uint8_t addr;
+/* 扫描总线设备 */
+void bsp_i2c_scan(void)
+{
+    PRINT("I2C Hardware Scanning...\r\n");
     uint8_t found = 0;
-    PRINT("I2C Scanning...\r\n");
-    for(addr = 0x01; addr < 0x80; addr++) {
-        if(bsp_i2c_probe(addr) == 0) {
+    for (uint8_t addr = 0x01; addr < 0x7F; addr++) {
+        if (bsp_i2c_probe(addr) == 0) {
             PRINT("Device found at 0x%02X\r\n", addr);
             found = 1;
         }
-        I2C_Delay(); // 避免总线冲突
+        mDelaymS(1);
     }
-    if(!found) PRINT("No I2C device found!\r\n");
+    if (!found) PRINT("No I2C device found!\r\n");
 }
 
-/* 关闭 I2C（释放引脚为输入） */
-void bsp_i2c_deinit(void) {
+/* 向指定设备的寄存器写入多字节数据 */
+uint8_t bsp_i2c_write_bytes(uint8_t dev_addr, uint8_t reg, const uint8_t *data, uint16_t len)
+{
+    uint32_t timeout = I2C_TIMEOUT_COUNT;
+
+    // 1. 等待总线空闲
+    while(I2C_GetFlagStatus(I2C_FLAG_BUSY) && --timeout);
+    if(timeout == 0) return 1;
+
+    // 2. 发送起始条件
+    I2C_GenerateSTART(ENABLE);
+    timeout = I2C_TIMEOUT_COUNT;
+    while(!I2C_CheckEvent(I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
+    if(timeout == 0) goto error;
+
+    // 3. 发送从机写地址
+    I2C_Send7bitAddress(dev_addr << 1, I2C_Direction_Transmitter);
+    timeout = I2C_TIMEOUT_COUNT;
+    while(!I2C_CheckEvent(I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --timeout) {
+        if(I2C_GetFlagStatus(I2C_FLAG_AF) == SET) {
+            I2C_ClearFlag(I2C_FLAG_AF);
+            goto error;
+        }
+    }
+    if(timeout == 0) goto error;
+
+    // 4. 发送寄存器地址
+    I2C_SendData(reg);
+    timeout = I2C_TIMEOUT_COUNT;
+    while(!I2C_CheckEvent(I2C_EVENT_MASTER_BYTE_TRANSMITTED) && --timeout);
+    if(timeout == 0) goto error;
+
+    // 5. 循环发送数据
+    for(uint16_t i = 0; i < len; i++)
+    {
+        I2C_SendData(data[i]);
+        timeout = I2C_TIMEOUT_COUNT;
+        while(!I2C_CheckEvent(I2C_EVENT_MASTER_BYTE_TRANSMITTED) && --timeout);
+        if(timeout == 0) goto error;
+    }
+
+    // 6. 发送停止条件
+    I2C_GenerateSTOP(ENABLE);
+    return 0;
+
+error:
+    I2C_GenerateSTOP(ENABLE);
+    return 1;
+}
+
+/* 向指定寄存器写入单字节 */
+uint8_t bsp_i2c_write_reg(uint8_t dev_addr, uint8_t reg, uint8_t data)
+{
+    return bsp_i2c_write_bytes(dev_addr, reg, &data, 1);
+}
+
+/* 从指定设备的寄存器读取多字节数据 */
+uint8_t bsp_i2c_read_bytes(uint8_t dev_addr, uint8_t reg, uint8_t *data, uint16_t len)
+{
+    if(len == 0) return 1;
+    uint32_t timeout = I2C_TIMEOUT_COUNT;
+
+    // --- 第一阶段：写目标寄存器地址 ---
+    while(I2C_GetFlagStatus(I2C_FLAG_BUSY) && --timeout);
+    if(timeout == 0) return 1;
+
+    I2C_GenerateSTART(ENABLE);
+    timeout = I2C_TIMEOUT_COUNT;
+    while(!I2C_CheckEvent(I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
+    if(timeout == 0) goto error;
+
+    I2C_Send7bitAddress(dev_addr << 1, I2C_Direction_Transmitter);
+    timeout = I2C_TIMEOUT_COUNT;
+    while(!I2C_CheckEvent(I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --timeout) {
+        if(I2C_GetFlagStatus(I2C_FLAG_AF) == SET) {
+            I2C_ClearFlag(I2C_FLAG_AF);
+            goto error;
+        }
+    }
+    if(timeout == 0) goto error;
+
+    I2C_SendData(reg);
+    timeout = I2C_TIMEOUT_COUNT;
+    while(!I2C_CheckEvent(I2C_EVENT_MASTER_BYTE_TRANSMITTED) && --timeout);
+    if(timeout == 0) goto error;
+
+    // --- 第二阶段：Repeated START 读取数据 ---
+    I2C_GenerateSTART(ENABLE);
+    timeout = I2C_TIMEOUT_COUNT;
+    while(!I2C_CheckEvent(I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
+    if(timeout == 0) goto error;
+
+    I2C_Send7bitAddress(dev_addr << 1, I2C_Direction_Receiver);
+    timeout = I2C_TIMEOUT_COUNT;
+    while(!I2C_CheckEvent(I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED) && --timeout);
+    if(timeout == 0) goto error;
+
+    // 读取数据流控制
+    for(uint16_t i = 0; i < len; i++)
+    {
+        if(i == len - 1)
+        {
+            // 最后一个字节：关闭 ACK，产生 STOP
+            I2C_AcknowledgeConfig(DISABLE);
+            I2C_GenerateSTOP(ENABLE);
+        }
+        else
+        {
+            I2C_AcknowledgeConfig(ENABLE);
+        }
+
+        timeout = I2C_TIMEOUT_COUNT;
+        while(I2C_GetFlagStatus(I2C_FLAG_RXNE) == RESET && --timeout);
+        if(timeout == 0) goto error;
+
+        data[i] = I2C_ReceiveData();
+    }
+
+    // 恢复默认 ACK 使能，供后续传输使用
+    I2C_AcknowledgeConfig(ENABLE);
+    return 0;
+
+error:
+    I2C_AcknowledgeConfig(ENABLE);
+    I2C_GenerateSTOP(ENABLE);
+    return 1;
+}
+
+/* 从指定寄存器读取单字节 */
+uint8_t bsp_i2c_read_reg(uint8_t dev_addr, uint8_t reg, uint8_t *data)
+{
+    return bsp_i2c_read_bytes(dev_addr, reg, data, 1);
+}
+
+/* 关闭 I2C 外设 */
+void bsp_i2c_deinit(void)
+{
+    I2C_Cmd(DISABLE);
     GPIOB_ModeCfg(I2C_SCL_PIN | I2C_SDA_PIN, GPIO_ModeIN_PU);
 }

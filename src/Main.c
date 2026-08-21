@@ -17,10 +17,12 @@ int main() {
     HSECFG_Capacitance(HSECap_18p);
     SetSysClock(SYSCLK_FREQ);
 
+
     /* 2. 调试串口初始化（UART0，PB4/PB7，115200） */
     BSP_UART_Init(115200);
     PRINT("\r\n========== CH585F BSP Test ==========\r\n");
     PRINT("System Clock: %ld Hz\r\n", GetSysClock());
+
 
     /* 3. 初始化 PCA9539（扩展 I/O） */
     PRINT("Initializing PCA9539... ");
@@ -30,6 +32,7 @@ int main() {
     for (int i = 5; i < 8; i++) {
         BSP_IO_EXT_SetPinDirection(g_ioext_addr, 0, i, 0);
     }
+    
     PRINT("OK\r\n");
 
     /* 4. 初始化 SPI（硬件 SPI0，PA13/PA14/PA15） */
@@ -40,13 +43,14 @@ int main() {
     /* 5. 初始化 LCD（ST7789V，240x240） */
     PRINT("Initializing LCD... ");
     Lcd_Init();
-    LCD_Clear(LCD_WHITE);
+    LCD_Clear(LCD_RED);
+    PRINT("CON\r\n");
     LCD_ShowString(10, 10, "Hello CH585!", LCD_WHITE);
     LCD_ShowString(10, 30, "LCD Test OK", LCD_GREEN);
 
     PRINT("OK\r\n");
 
-    /* 9. 主循环：显示一些动态信息（例如时间或计数） */
+    // /* 9. 主循环：显示一些动态信息（例如时间或计数） */
     uint32_t counter = 0;
     char buf[32];
 
