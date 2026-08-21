@@ -23,6 +23,21 @@
 				"parentLogicPath": "",
 				"type": "file",
 				"name": "*.wvproj"
+			},
+			{
+				"parentLogicPath": "components/pikascript/pikascript-lib/PikaStdDevice",
+				"type": "file",
+				"name": "PikaStdDevice_GPIO.c"
+			},
+			{
+				"parentLogicPath": "components/pikascript/pikascript-lib/PikaStdDevice",
+				"type": "file",
+				"name": "PikaStdDevice_SPI.c"
+			},
+			{
+				"name": "PikaStdDevice_PWM.c",
+				"parentLogicPath": "components/pikascript/pikascript-lib/PikaStdDevice",
+				"type": "file"
 			}
 		],
 		"projectName": "CH585F_test_print",
@@ -129,7 +144,11 @@
 							"${project}/StdPeriphDriver/inc",
 							"${project}/RVMSIS",
 							"${project}/src/bsp/Inc",
-							"${project}/components/littlefs"
+							"${project}/components/littlefs",
+							"${project}/components/pikascript/pikascript-api",
+							"${project}/components/pikascript/pikascript-core",
+							"${project}/components/pikascript/pikascript-lib/PikaStdDevice",
+							"${project}/components/pikascript/pikascript-lib/PikaStdLib"
 						],
 						"include_system_paths": [],
 						"include_files": []

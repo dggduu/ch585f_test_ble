@@ -411,27 +411,6 @@ void LCD_ShowNum1(uint16_t x, uint16_t y, float num, uint8_t len, uint16_t color
     }
 }
 
-// 显示汉字（依赖外部字库）
-void LCD_ShowChinese(uint16_t x, uint16_t y, uint8_t index, uint8_t size, uint16_t color)
-{
-    uint8_t i, j;
-    uint8_t *temp, size1;
-    if (size == 16) temp = Hzk16;
-    if (size == 32) temp = Hzk32;
-    LCD_Address_Set(x, y, x + size - 1, y + size - 1);
-    size1 = size * size / 8;
-    temp += index * size1;
-    for (j = 0; j < size1; j++) {
-        for (i = 0; i < 8; i++) {
-            if ((*temp & (1 << i)) != 0) {
-                LCD_WR_DATA(color);
-            } else {
-                LCD_WR_DATA(BACK_COLOR);
-            }
-        }
-        temp++;
-    }
-}
 
 // 显示彩条
 void LCD_DispBand(void)

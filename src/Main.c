@@ -4,6 +4,8 @@
 #include "bsp_pin_defs.h"
 #include "bsp_spi.h"
 #include "bsp_lcd_hw.h"
+
+#include "pikaScript.h"
 /* 定义 PCA9539 的 I2C 地址（7 位） */
 uint8_t g_ioext_addr = 0x74;
 
@@ -54,12 +56,13 @@ int main() {
     uint32_t counter = 0;
     char buf[32];
 
+    BSP_PikaScript_Init();
+    BSP_PikaScript_RunString("print('Hello from PikaPython!')");
+
     while (1) {
         // 在 LCD 右上角显示计数
         sprintf(buf, "Cnt: %lu", counter++);
         LCD_ShowString(180, 10, buf, LCD_YELLOW);
-        delay_ms(1000);
-        // 也可打印串口
-        PRINT("Counter: %lu\r\n", counter);
+        delay_ms(2000);
     }
 }

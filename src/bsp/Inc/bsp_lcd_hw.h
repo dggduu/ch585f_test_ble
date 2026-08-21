@@ -41,9 +41,6 @@ void LCD_ShowString(uint16_t x, uint16_t y, const uint8_t *p, uint16_t color);
 void LCD_ShowNum(uint16_t x, uint16_t y, uint16_t num, uint8_t len, uint16_t color);
 void LCD_ShowNum1(uint16_t x, uint16_t y, float num, uint8_t len, uint16_t color);
 
-// 汉字显示（需要外部字库数组）
-void LCD_ShowChinese(uint16_t x, uint16_t y, uint8_t index, uint8_t size, uint16_t color);
-
 // 测试图案
 void LCD_DispBand(void);
 void LCD_DispGrayHor16(void);
