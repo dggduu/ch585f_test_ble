@@ -77,8 +77,8 @@ static inline void screen_draw_str(u8g2_t *u8g2, uint16_t x, uint16_t y, const c
       .right_item_margin = 5,       /* 右侧元素右侧边距 */                     \
       .right_item_left_padding = 8, /* 右侧元素左侧内边距 */                   \
       .scroll_pause_ticks = 200,    /* 滚动停顿200ms */                        \
-      .scroll_speed_divisor = 3,    /* 滚动速度除数 */                         \
-      .animation_duration = 12,     /* 动画时长12tick */                       \
+      .scroll_speed_divisor = 4,    /* 滚动速度除数 */                         \
+      .animation_duration = 8,     /* 动画时长12tick */                       \
       .highlight_padding = 15,      /* 高亮框内边距 */                         \
       .highlight_height = 13,       /* 高亮框高度 */                           \
 	  .hightlight_radius = 3,													\

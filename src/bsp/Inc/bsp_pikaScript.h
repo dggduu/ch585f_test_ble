@@ -5,7 +5,7 @@
 
 /* ============================ 配置宏 ============================ */
 /* 置1启用 PikaPython 脚本功能，置0完全关闭 */
-#define PIKASCRIPT_ENABLE   0
+#define PIKASCRIPT_ENABLE   1
 
 #if PIKASCRIPT_ENABLE
 

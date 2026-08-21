@@ -1,6 +1,6 @@
 #include "page_stack.h"
 #include "screen.h"  // 导入g_screen_cfg
-
+#include "bsp_timer.h"
 // 全局页面栈实例
 page_stack_t g_page_stack;
 
@@ -64,7 +64,8 @@ void page_stack_portal_toggle(page_stack_t *ps, const portal_component_t *comp, 
 
 void page_update(page_stack_t *ps, btn_type_t btn) {
     if (!ps) return;
-	ps->main_tick++;
+	// ps->main_tick++;
+    ps->main_tick = BSP_Timer_GetMillis() /4;
     // 输入拦截与分发
     if (btn != BTN_NONE) {
         if (ps->global_btn_handler) ps->global_btn_handler(btn);

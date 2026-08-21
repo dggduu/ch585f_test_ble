@@ -1,3 +1,6 @@
 obj/
 .mrs/
 components/littlefs
+.claude/
+.code/
+*/*/__pycache__/

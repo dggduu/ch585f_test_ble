@@ -6,6 +6,7 @@ void bsp_spi_init(void) {
     GPIOA_ModeCfg(GPIO_Pin_13 | GPIO_Pin_14, GPIO_ModeOut_PP_5mA);
     GPIOA_ModeCfg(GPIO_Pin_15, GPIO_ModeIN_PU);
     SPI0_MasterDefInit();
+    SPI0_CLKCfg(2);
     SPI0_DataMode(Mode0_HighBitINFront);
     
 }
