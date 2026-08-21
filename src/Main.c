@@ -3,7 +3,9 @@
 #include "bsp_io_ext.h"
 #include "bsp_pin_defs.h"
 #include "bsp_spi.h"
-#include "bsp_lcd_hw.h"
+#include "lcd_driver.h"
+#include "lcd_wegui_driver.h"
+#include "wegui_menu_demo.h"
 
 #include "pikaScript.h"
 /* 定义 PCA9539 的 I2C 地址（7 位） */
@@ -42,27 +44,30 @@ int main() {
     bsp_spi_init();
     PRINT("OK\r\n");
 
-    /* 5. 初始化 LCD（ST7789V，240x240） */
-    PRINT("Initializing LCD... ");
-    Lcd_Init();
-    LCD_Clear(LCD_BLUE);
-    PRINT("CON\r\n");
-    LCD_ShowString(10, 10, "Hello CH585!", LCD_WHITE);
-    LCD_ShowString(10, 30, "LCD Test OK", LCD_GREEN);
-
+    /* 5. 初始化 WeGui RGB 图形库（ST7789V，240x240） */
+    PRINT("Initializing WeGui RGB... ");
+    lcd_driver_init();          // 屏幕驱动初始化（SPI+复位+背光+IC）
+    lcd_wegui_init();           // wegui 图形库初始化
+    wegui.menu = &m_main;       // 开机初始菜单
     PRINT("OK\r\n");
 
-    // /* 9. 主循环：显示一些动态信息（例如时间或计数） */
-    uint32_t counter = 0;
-    char buf[32];
 
-    BSP_PikaScript_Init();
-    BSP_PikaScript_RunString("print('Hello from PikaPython!')");
+    /* 6. TMR0 1ms 中断：驱动 wegui 软件计时 */
+    TMR0_TimerInit(FREQ_SYS / 1000);   // 1ms 中断周期
+    TMR0_ITCfg(ENABLE, RB_TMR_IE_CYC_END);
+    PFIC_EnableIRQ(TMR0_IRQn);
 
     while (1) {
-        // 在 LCD 右上角显示计数
-        sprintf(buf, "Cnt: %lu", counter++);
-        LCD_ShowString(180, 10, buf, LCD_YELLOW);
-        delay_ms(2000);
+        // wegui 主循环：菜单绘制/动画/动态刷新
+        wegui_loop_func();
     }
+}
+
+/*--------------------------------------------------------------
+ * TMR0 1ms 中断：驱动 wegui 软件计时
+----------------------------------------------------------------*/
+void TMR0_IRQHandler(void)
+{
+    TMR0_ClearITFlag(RB_TMR_IE_CYC_END);
+    wegui_1ms_stick();
 }

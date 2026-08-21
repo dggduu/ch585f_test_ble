@@ -54,5 +54,53 @@
         <arguments>1.0-name-matches-false-false-PikaStdDevice_PWM.c</arguments>
       </matcher>
     </filter>
+    <filter>
+      <name>components/u8g2/csrc</name>
+      <type>6</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-mui.c</arguments>
+      </matcher>
+    </filter>
+    <filter>
+      <name>components/u8g2/csrc</name>
+      <type>6</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-mui.h</arguments>
+      </matcher>
+    </filter>
+    <filter>
+      <name>components/u8g2/csrc</name>
+      <type>6</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-mui_u8g2.c</arguments>
+      </matcher>
+    </filter>
+    <filter>
+      <name>components/u8g2/csrc</name>
+      <type>6</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-mui_u8g2.h</arguments>
+      </matcher>
+    </filter>
+    <filter>
+      <name>components/my-u8g2-ui-toolkit</name>
+      <type>6</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-uart.h</arguments>
+      </matcher>
+    </filter>
+    <filter>
+      <name>components/my-u8g2-ui-toolkit</name>
+      <type>6</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-uart.c</arguments>
+      </matcher>
+    </filter>
   </filteredResources>
 </projectDescription>

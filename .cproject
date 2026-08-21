@@ -127,6 +127,15 @@
                   <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/pikascript/pikascript-core}&quot;"/>
                   <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/pikascript/pikascript-lib/PikaStdDevice}&quot;"/>
                   <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/pikascript/pikascript-lib/PikaStdLib}&quot;"/>
+                  <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/AHEasing}&quot;"/>
+                  <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/my-u8g2-ui-toolkit}&quot;"/>
+                  <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/my-u8g2-ui-toolkit/UI}&quot;"/>
+                  <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/my-u8g2-ui-toolkit/UI/component}&quot;"/>
+                  <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/UI_Porting}&quot;"/>
+                  <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/WeGui_RGB/Lcd_Driver}&quot;"/>
+                  <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/WeGui_RGB/Lcd_WeGui}&quot;"/>
+                  <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/WeGui_RGB/CH585/Lcd_Port}&quot;"/>
+                  <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/components/WeGui_RGB/Lcd_Demo}&quot;"/>
                 </option>
                 <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.systempaths.2011720354" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.systempaths" useByScannerDiscovery="true" valueType="includePath"/>
                 <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.files.542153928" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.files" useByScannerDiscovery="true" valueType="includeFiles"/>

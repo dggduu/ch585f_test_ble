@@ -29,6 +29,12 @@ extern uint16_t BACK_COLOR;   // 背景色
 void Lcd_Init(void);
 void LCD_Clear(uint16_t Color);
 void LCD_Fill(uint16_t xsta, uint16_t ysta, uint16_t xend, uint16_t yend, uint16_t color);
+
+// 批量写像素（供 u8g2 显示框架调用）：设置窗口后一次发送 RGB565 像素数组
+// x1<=x2, y1<=y2，count 必须等于 (x2-x1+1)*(y2-y1+1)
+void LCD_WritePixels(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
+                     const uint16_t *pixels, uint32_t count);
+// void LCD_SendBuffer(const uint8_t *index_buf, const uint16_t *palette, uint16_t width, uint16_t height, uint8_t bpp);
 void LCD_DrawPoint(uint16_t x, uint16_t y, uint16_t color);
 void LCD_DrawPoint_big(uint16_t x, uint16_t y, uint16_t color);
 void LCD_DrawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);

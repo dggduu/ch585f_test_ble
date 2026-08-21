@@ -35,9 +35,39 @@
 				"name": "PikaStdDevice_SPI.c"
 			},
 			{
-				"name": "PikaStdDevice_PWM.c",
 				"parentLogicPath": "components/pikascript/pikascript-lib/PikaStdDevice",
-				"type": "file"
+				"type": "file",
+				"name": "PikaStdDevice_PWM.c"
+			},
+			{
+				"parentLogicPath": "components/u8g2/csrc",
+				"type": "file",
+				"name": "mui.c"
+			},
+			{
+				"parentLogicPath": "components/u8g2/csrc",
+				"type": "file",
+				"name": "mui.h"
+			},
+			{
+				"parentLogicPath": "components/u8g2/csrc",
+				"type": "file",
+				"name": "mui_u8g2.c"
+			},
+			{
+				"parentLogicPath": "components/u8g2/csrc",
+				"type": "file",
+				"name": "mui_u8g2.h"
+			},
+			{
+				"parentLogicPath": "components/my-u8g2-ui-toolkit",
+				"type": "file",
+				"name": "uart.h"
+			},
+			{
+				"parentLogicPath": "components/my-u8g2-ui-toolkit",
+				"type": "file",
+				"name": "uart.c"
 			}
 		],
 		"projectName": "CH585F_test_print",
@@ -148,7 +178,16 @@
 							"${project}/components/pikascript/pikascript-api",
 							"${project}/components/pikascript/pikascript-core",
 							"${project}/components/pikascript/pikascript-lib/PikaStdDevice",
-							"${project}/components/pikascript/pikascript-lib/PikaStdLib"
+							"${project}/components/pikascript/pikascript-lib/PikaStdLib",
+							"${project}/components/AHEasing",
+							"${project}/components/my-u8g2-ui-toolkit",
+							"${project}/components/my-u8g2-ui-toolkit/UI",
+							"${project}/components/my-u8g2-ui-toolkit/UI/component",
+							"${project}/components/UI_Porting",
+							"${project}/components/WeGui_RGB/Lcd_Driver",
+							"${project}/components/WeGui_RGB/Lcd_WeGui",
+							"${project}/components/WeGui_RGB/CH585/Lcd_Port",
+							"${project}/components/WeGui_RGB/Lcd_Demo"
 						],
 						"include_system_paths": [],
 						"include_files": []

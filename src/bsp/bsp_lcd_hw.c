@@ -3,7 +3,6 @@
 #include "bsp_pin_defs.h"          // 提供 SCREEN_CS_SET/CLR, DC, RST, BLC 宏
 #include "bsp_lcd_font_chinese.h"
 #include "CH58x_common.h"          // 提供 mDelaymS
-
 #include "bsp_uart.h"
 
 // 背景色全局变量
@@ -238,6 +237,44 @@ void LCD_Fill(uint16_t xsta, uint16_t ysta, uint16_t xend, uint16_t yend, uint16
     uint32_t total = (uint32_t)width * height;
     LCD_Address_Set(xsta, ysta, xend, yend);
     LCD_WriteDataBlock(color, total);
+}
+
+// 批量写像素（供 u8g2 显示框架调用）：设置窗口后一次发送 RGB565 像素数组。
+// 逐行刷新时窗口为 (0,y)-(W-1,y)，count 必须等于 (x2-x1+1)*(y2-y1+1)。
+// 分块打包发送，480 字节静态缓冲可一次容纳整行 240 像素。
+void LCD_WritePixels(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
+                     const uint16_t *pixels, uint32_t count)
+{
+    if (count == 0) return;
+
+    LCD_Address_Set(x1, y1, x2, y2);
+
+    static uint8_t buf[512];
+    uint32_t i = 0;
+
+    SCREEN_CS_CLR();
+    SCREEN_DC_SET();
+
+    while (i < count) {
+        uint32_t chunk = count - i;
+        uint32_t nbytes = chunk * 2;
+        if (nbytes > sizeof(buf)) {
+            chunk = sizeof(buf) / 2;
+            nbytes = sizeof(buf);
+        }
+
+        uint16_t idx = 0;
+        for (uint32_t j = 0; j < chunk; j++) {
+            uint16_t c = pixels[i + j];
+            buf[idx++] = (uint8_t)(c >> 8);
+            buf[idx++] = (uint8_t)(c & 0xFF);
+        }
+
+        bsp_spi_send_bulk(buf, (uint16_t)nbytes);
+        i += chunk;
+    }
+
+    SCREEN_CS_SET();
 }
 
 // 画点
@@ -483,3 +520,53 @@ void LCD_DispBlock(void)
         for (j = 0; j < LCD_W; j++) LCD_WR_DATA(0x7BEF);
     }
 }
+
+// extern uint8_t u8g2_pix_read(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y);
+
+// // 在 bsp_lcd_hw.c 中
+// void LCD_SendBuffer(const uint8_t *index_buf, const uint16_t *palette, uint16_t width, uint16_t height, uint8_t bpp)
+// {
+//     uint32_t total_pixels = (uint32_t)width * height;
+//     uint32_t i = 0;
+//     uint8_t mask = (1 << bpp) - 1;
+//     uint32_t bit_pos = 0;
+//     uint8_t byte_val = 0;
+
+//     LCD_Address_Set(0, 0, width - 1, height - 1);
+//     SCREEN_CS_CLR();
+//     SCREEN_DC_SET();
+
+//     static uint8_t send_buf[512];
+//     uint16_t buf_idx = 0;
+
+//     for (uint32_t pixel_idx = 0; pixel_idx < total_pixels; pixel_idx++) {
+//         // 读取 pixel_idx 处的颜色索引
+//         bit_pos = pixel_idx * bpp;
+//         uint32_t byte_idx = bit_pos >> 3;
+//         uint8_t bit_offset = bit_pos & 0x07;
+//         uint8_t idx;
+//         if (bit_offset + bpp <= 8) {
+//             idx = (index_buf[byte_idx] >> (8 - bit_offset - bpp)) & mask; // 注意位序
+//         } else {
+//             uint16_t val = index_buf[byte_idx];
+//             uint8_t bits_from_first = 8 - bit_offset;
+//             uint8_t bits_from_second = bpp - bits_from_first;
+//             idx = ((val << (8 - bits_from_first)) >> (8 - bpp)) | (index_buf[byte_idx + 1] >> (8 - bits_from_second));
+//         }
+
+//         uint16_t rgb = palette[idx];
+//         send_buf[buf_idx++] = rgb >> 8;
+//         send_buf[buf_idx++] = rgb & 0xFF;
+
+//         if (buf_idx >= sizeof(send_buf)) {
+//             bsp_spi_send_bulk(send_buf, buf_idx);
+//             buf_idx = 0;
+//         }
+//     }
+
+//     if (buf_idx > 0) {
+//         bsp_spi_send_bulk(send_buf, buf_idx);
+//     }
+
+//     SCREEN_CS_SET();
+// }
