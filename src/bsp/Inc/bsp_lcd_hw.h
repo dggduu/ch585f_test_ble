@@ -34,7 +34,9 @@ void LCD_Fill(uint16_t xsta, uint16_t ysta, uint16_t xend, uint16_t yend, uint16
 // x1<=x2, y1<=y2，count 必须等于 (x2-x1+1)*(y2-y1+1)
 void LCD_WritePixels(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
                      const uint16_t *pixels, uint32_t count);
-// void LCD_SendBuffer(const uint8_t *index_buf, const uint16_t *palette, uint16_t width, uint16_t height, uint8_t bpp);
+// 整屏索引缓冲刷新（u8g2 框架主刷新路径）：index_buf 为每像素 BPP 位的调色板索引
+// （LSB-first 打包），palette 为 2^BPP 项 RGB565 调色板，一次发送整屏。
+void LCD_SendBuffer(const uint8_t *index_buf, const uint16_t *palette, uint16_t width, uint16_t height, uint8_t bpp);
 void LCD_DrawPoint(uint16_t x, uint16_t y, uint16_t color);
 void LCD_DrawPoint_big(uint16_t x, uint16_t y, uint16_t color);
 void LCD_DrawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);

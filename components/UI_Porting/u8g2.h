@@ -175,16 +175,75 @@ uint8_t u8g2_GetFontDescent(u8g2_t *u8g2);
 uint8_t u8g2_GetFontHeight(u8g2_t *u8g2);
 
 /* ==================== 颜色索引（U8G2_PORTING_BPP == 3 时） ==================== */
+/* 调色板索引枚举：ui_* 系列绘制 API 的颜色参数、u8g2_SetDrawColor() 的入参。
+ * 枚举类型让 IDE 自动补全可以直接列出可选颜色。 */
 #if U8G2_PORTING_BPP >= 3
-#define U8G2_COLOR_BLACK 0
-#define U8G2_COLOR_WHITE 1
-#define U8G2_COLOR_RED 2
-#define U8G2_COLOR_GREEN 3
-#define U8G2_COLOR_BLUE 4
-#define U8G2_COLOR_YELLOW 5
-#define U8G2_COLOR_CYAN 6
-#define U8G2_COLOR_MAGENTA 7
+typedef enum {
+  UI_COLOR_BLACK   = 0, /* 黑色（索引 0 恒为背景色） */
+  UI_COLOR_WHITE   = 1, /* 白色 */
+  UI_COLOR_RED     = 2, /* 红色 */
+  UI_COLOR_GREEN   = 3, /* 绿色 */
+  UI_COLOR_BLUE    = 4, /* 蓝色 */
+  UI_COLOR_YELLOW  = 5, /* 黄色 */
+  UI_COLOR_CYAN    = 6, /* 青色 */
+  UI_COLOR_MAGENTA = 7, /* 洋红色 */
+} ui_color_t;
+/* 兼容宏：旧代码/二进制码仍可使用 U8G2_COLOR_* */
+#define U8G2_COLOR_BLACK   UI_COLOR_BLACK
+#define U8G2_COLOR_WHITE   UI_COLOR_WHITE
+#define U8G2_COLOR_RED     UI_COLOR_RED
+#define U8G2_COLOR_GREEN   UI_COLOR_GREEN
+#define U8G2_COLOR_BLUE    UI_COLOR_BLUE
+#define U8G2_COLOR_YELLOW  UI_COLOR_YELLOW
+#define U8G2_COLOR_CYAN    UI_COLOR_CYAN
+#define U8G2_COLOR_MAGENTA UI_COLOR_MAGENTA
 #endif
+
+/* ==================== ui_* 彩色绘制 API（操作全局 u8g2 实例） ====================
+ * 所有 ui_* 绘制函数都显式携带颜色索引参数（ui_color_t），与 u8g2_* 兼容层
+ * （默认白字，颜色由 u8g2_SetDrawColor 决定）对应：
+ *   底层实现共用一个绘制管线，u8g2_* 内部转发到 ui_* 并传入当前 draw_color。
+ * 全部遵守全局裁剪窗口（u8g2_SetClipWindow），字体绘制使用当前字体
+ * （u8g2_SetFont），文本实心模式（u8g2_SetFontMode(0)）背景用另一色填充。 */
+
+/* ---- 缓冲管理 ---- */
+/* 清空帧缓冲为背景色（索引 0） */
+void ui_clear(void);
+/* 整屏索引缓冲一次性发送（内部调用 bsp 的 LCD_SendBuffer，无逐行窗口切换） */
+void ui_send_buffer(void);
+
+/* ---- 基本图元（color: 调色板索引 0~U8G2_NUM_COLORS-1） ---- */
+void ui_draw_pixel(u8g2_uint_t x, u8g2_uint_t y, uint8_t color);
+void ui_draw_hline(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t len, uint8_t color);
+void ui_draw_vline(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t len, uint8_t color);
+void ui_draw_line(u8g2_uint_t x1, u8g2_uint_t y1, u8g2_uint_t x2, u8g2_uint_t y2,
+                  uint8_t color);
+void ui_draw_box(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w, u8g2_uint_t h,
+                 uint8_t color);
+void ui_draw_frame(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w, u8g2_uint_t h,
+                   uint8_t color);
+void ui_draw_rbox(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w, u8g2_uint_t h,
+                  u8g2_uint_t r, uint8_t color);
+void ui_draw_rframe(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w, u8g2_uint_t h,
+                    u8g2_uint_t r, uint8_t color);
+void ui_draw_circle(u8g2_uint_t x0, u8g2_uint_t y0, u8g2_uint_t rad,
+                    uint8_t color);
+void ui_draw_disc(u8g2_uint_t x0, u8g2_uint_t y0, u8g2_uint_t rad,
+                  uint8_t color);
+void ui_draw_triangle(u8g2_uint_t x0, u8g2_uint_t y0, u8g2_uint_t x1,
+                      u8g2_uint_t y1, u8g2_uint_t x2, u8g2_uint_t y2,
+                      uint8_t color);
+/* XBM 位图：每行像素 MSB 在前，行尾补齐到整字节；1 位画 color，0 位跳过 */
+void ui_draw_xbm(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w, u8g2_uint_t h,
+                 const uint8_t *bitmap, uint8_t color);
+
+/* ---- 文本（使用当前字体，返回横向步进/结束 x） ---- */
+u8g2_uint_t ui_draw_glyph(u8g2_uint_t x, u8g2_uint_t y, uint16_t encoding,
+                          uint8_t color);
+u8g2_uint_t ui_draw_str(u8g2_uint_t x, u8g2_uint_t y, const char *str,
+                        uint8_t color);
+u8g2_uint_t ui_draw_utf8(u8g2_uint_t x, u8g2_uint_t y, const char *str,
+                         uint8_t color);
 
 /* ==================== 内置字体（u8g2 原版字体表，见 u8g2_fonts.c） ==================== */
 extern const uint8_t u8g2_font_5x7_tf[];

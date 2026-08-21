@@ -521,52 +521,52 @@ void LCD_DispBlock(void)
     }
 }
 
-// extern uint8_t u8g2_pix_read(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y);
+// 整屏索引缓冲刷新（u8g2 框架主刷新路径）
+// index_buf: 每像素 bpp 位的调色板索引，LSB-first 组打包（与 u8g2_porting 的
+//             pix_buf 布局一致：像素 bit 偏移 = (y*width+x)*bpp）
+// palette:   2^bpp 项 RGB565 调色板
+// 说明: 一次设置窗口 + CS/DC 后连续发送，逐像素解出索引并经调色板映射为大端
+//       RGB565，分块批量 SPI 发送，避免逐行窗口切换。
+void LCD_SendBuffer(const uint8_t *index_buf, const uint16_t *palette, uint16_t width, uint16_t height, uint8_t bpp)
+{
+    uint32_t total_pixels = (uint32_t)width * height;
+    uint8_t mask = (uint8_t)((1u << bpp) - 1);   // bpp=8 时 (1u<<8)-1=255 不溢出
 
-// // 在 bsp_lcd_hw.c 中
-// void LCD_SendBuffer(const uint8_t *index_buf, const uint16_t *palette, uint16_t width, uint16_t height, uint8_t bpp)
-// {
-//     uint32_t total_pixels = (uint32_t)width * height;
-//     uint32_t i = 0;
-//     uint8_t mask = (1 << bpp) - 1;
-//     uint32_t bit_pos = 0;
-//     uint8_t byte_val = 0;
+    LCD_Address_Set(0, 0, width - 1, height - 1);
+    SCREEN_CS_CLR();
+    SCREEN_DC_SET();
 
-//     LCD_Address_Set(0, 0, width - 1, height - 1);
-//     SCREEN_CS_CLR();
-//     SCREEN_DC_SET();
+    static uint8_t send_buf[512];
+    uint16_t buf_idx = 0;
 
-//     static uint8_t send_buf[512];
-//     uint16_t buf_idx = 0;
+    for (uint32_t pixel_idx = 0; pixel_idx < total_pixels; pixel_idx++) {
+        uint32_t bit_pos = pixel_idx * bpp;
+        uint32_t byte_idx = bit_pos >> 3;
+        uint8_t bit_offset = (uint8_t)(bit_pos & 0x07);
+        uint8_t idx;
+        if (bit_offset + bpp <= 8) {
+            /* LSB-first 打包：索引低位在字节低位，右移 bit_offset 即得 */
+            idx = (uint8_t)(index_buf[byte_idx] >> bit_offset) & mask;
+        } else {
+            /* 跨字节：低位在本字节 [bit_offset..7]，高位在下一字节开头 */
+            idx = (uint8_t)((index_buf[byte_idx] >> bit_offset) |
+                            (index_buf[byte_idx + 1] << (8 - bit_offset)));
+            idx &= mask;
+        }
 
-//     for (uint32_t pixel_idx = 0; pixel_idx < total_pixels; pixel_idx++) {
-//         // 读取 pixel_idx 处的颜色索引
-//         bit_pos = pixel_idx * bpp;
-//         uint32_t byte_idx = bit_pos >> 3;
-//         uint8_t bit_offset = bit_pos & 0x07;
-//         uint8_t idx;
-//         if (bit_offset + bpp <= 8) {
-//             idx = (index_buf[byte_idx] >> (8 - bit_offset - bpp)) & mask; // 注意位序
-//         } else {
-//             uint16_t val = index_buf[byte_idx];
-//             uint8_t bits_from_first = 8 - bit_offset;
-//             uint8_t bits_from_second = bpp - bits_from_first;
-//             idx = ((val << (8 - bits_from_first)) >> (8 - bpp)) | (index_buf[byte_idx + 1] >> (8 - bits_from_second));
-//         }
+        uint16_t rgb = palette[idx];
+        send_buf[buf_idx++] = (uint8_t)(rgb >> 8);
+        send_buf[buf_idx++] = (uint8_t)(rgb & 0xFF);
 
-//         uint16_t rgb = palette[idx];
-//         send_buf[buf_idx++] = rgb >> 8;
-//         send_buf[buf_idx++] = rgb & 0xFF;
+        if (buf_idx >= sizeof(send_buf)) {
+            bsp_spi_send_bulk(send_buf, buf_idx);
+            buf_idx = 0;
+        }
+    }
 
-//         if (buf_idx >= sizeof(send_buf)) {
-//             bsp_spi_send_bulk(send_buf, buf_idx);
-//             buf_idx = 0;
-//         }
-//     }
+    if (buf_idx > 0) {
+        bsp_spi_send_bulk(send_buf, buf_idx);
+    }
 
-//     if (buf_idx > 0) {
-//         bsp_spi_send_bulk(send_buf, buf_idx);
-//     }
-
-//     SCREEN_CS_SET();
-// }
+    SCREEN_CS_SET();
+}

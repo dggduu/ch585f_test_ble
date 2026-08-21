@@ -64,11 +64,19 @@
 #endif
 
 /*
- * 底层刷新接口：由 src/bsp/bsp_lcd_hw.c 提供（LCD_WritePixels）。
+ * 底层刷新接口：由 src/bsp/bsp_lcd_hw.c 提供。
  * 这里只做前置声明，不包含 bsp 头文件，方便在主机端做单元测试时替换。
- * x1<=x2, y1<=y2，pixels 为 RGB565 像素数组，count 必须等于
- * (x2-x1+1) * (y2-y1+1)，屏幕按行填充。
  */
+
+/* 整屏索引缓冲刷新（主刷新路径）：index_buf 为每像素 BPP 位的调色板索引
+ * （LSB-first 组打包，与本框架 pix_buf 布局一致），palette 为 2^BPP 项
+ * RGB565 调色板。一次设置窗口后连续发送整屏，比逐行 LCD_WritePixels
+ * 少 240 次窗口切换。 */
+void LCD_SendBuffer(const uint8_t *index_buf, const uint16_t *palette,
+                    uint16_t width, uint16_t height, uint8_t bpp);
+
+/* 逐行像素刷新（备用）：x1<=x2, y1<=y2，pixels 为 RGB565 像素数组，
+ * count 必须等于 (x2-x1+1) * (y2-y1+1)，屏幕按行填充。 */
 void LCD_WritePixels(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
                      const uint16_t *pixels, uint32_t count);
 

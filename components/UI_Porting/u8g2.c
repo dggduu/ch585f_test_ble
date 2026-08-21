@@ -27,20 +27,6 @@ u8g2_t u8g2;
  * 低位 sh + BPP - 8 位），与 u8g2 1bpp 的字节读取方式一致。
  */
 
-static uint8_t u8g2_pix_read(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y) {
-  uint32_t bit = ((uint32_t)y * u->width + x) * U8G2_PORTING_BPP;
-  uint32_t byte = bit >> 3;
-  uint8_t sh = (uint8_t)(bit & 7);
-  uint16_t val;
-
-  val = u->pix_buf[byte] >> sh;
-  if (sh + U8G2_PORTING_BPP > 8) {
-    val |= (uint16_t)u->pix_buf[byte + 1] << (8 - sh); /* uint8 << 截断语义 */
-  }
-  return (uint8_t)(val & (U8G2_NUM_COLORS - 1));
-}
-
-
 static void u8g2_pix_write(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
                            uint8_t color) {
   uint32_t bit = ((uint32_t)y * u->width + x) * U8G2_PORTING_BPP;
@@ -68,9 +54,11 @@ static uint8_t u8g2_is_inside_clip(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y) {
          y <= u->clip_y1;
 }
 
-static void u8g2_draw_pixel(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y) {
+/* 带色落笔：裁剪后按索引写入帧缓冲（所有图元的最终落笔点） */
+static void u8g2_pix_set(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
+                         uint8_t color) {
   if (u8g2_is_inside_clip(u, x, y)) {
-    u8g2_pix_write(u, x, y, u->draw_color);
+    u8g2_pix_write(u, x, y, color);
   }
 }
 
@@ -105,17 +93,12 @@ void u8g2_SetPowerSave(u8g2_t *u, uint8_t is_enable) {
 /* ==================== 缓冲管理 ==================== */
 void u8g2_ClearBuffer(u8g2_t *u) { memset(u->pix_buf, 0, u->pix_buf_size); }
 
-/* 颜色索引 0 恒为背景色（黑色）：清空时填 0 即得背景 */
+/* 颜色索引 0 恒为背景色（黑色）：清空时填 0 即得背景。
+ * 整屏索引缓冲一次发送：内部由 bsp 的 LCD_SendBuffer 逐像素解出索引、
+ * 经调色板映射为 RGB565 批量 SPI 发送，无需逐行切换窗口。 */
 void u8g2_SendBuffer(u8g2_t *u) {
-  uint16_t line[U8G2_PORTING_SCREEN_W];
-  u8g2_uint_t y, x;
-
-  for (y = 0; y < u->height; y++) {
-    for (x = 0; x < u->width; x++) {
-      line[x] = u->palette[u8g2_pix_read(u, x, y)];
-    }
-    LCD_WritePixels(0, y, u->width - 1, y, line, u->width);
-  }
+  LCD_SendBuffer(u->pix_buf, u->palette, u->width, u->height,
+                 U8G2_PORTING_BPP);
 }
 
 /* ==================== 颜色/字体设置 ==================== */
@@ -153,77 +136,69 @@ void u8g2_SetMaxClipWindow(u8g2_t *u) {
 }
 
 /* ==================== 基本图元 ==================== */
-void u8g2_DrawPixel(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y) {
-  u8g2_draw_pixel(u, x, y);
-}
-
-void u8g2_DrawHLine(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t len) {
+/*
+ * 带色内部实现：所有图元算法的"落笔"都收敛到 u8g2_pix_set()。
+ * 公开层分两套（见 u8g2.h）：
+ *   - ui_draw_*  : 显式携带颜色索引（操作全局 u8g2 实例）
+ *   - u8g2_Draw* : u8g2 兼容签名，转发到带色实现并传入 u->draw_color
+ *                  （默认 1 = 白色，u8g2_SetDrawColor 可改）
+ */
+static void u8g2_draw_hline_color(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
+                                  u8g2_uint_t len, uint8_t color) {
   u8g2_uint_t i;
   if (y < u->clip_y0 || y > u->clip_y1 || len == 0) {
     return;
   }
   for (i = 0; i < len; i++) {
-    u8g2_draw_pixel(u, (u8g2_uint_t)(x + i), y);
+    u8g2_pix_set(u, (u8g2_uint_t)(x + i), y, color);
   }
 }
 
-void u8g2_DrawVLine(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t len) {
+static void u8g2_draw_vline_color(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
+                                  u8g2_uint_t len, uint8_t color) {
   u8g2_uint_t i;
   if (x < u->clip_x0 || x > u->clip_x1 || len == 0) {
     return;
   }
   for (i = 0; i < len; i++) {
-    u8g2_draw_pixel(u, x, (u8g2_uint_t)(y + i));
+    u8g2_pix_set(u, x, (u8g2_uint_t)(y + i), color);
   }
 }
 
-/* Bresenham 直线（u8g2 同款算法） */
-void u8g2_DrawLine(u8g2_t *u, u8g2_uint_t x1, u8g2_uint_t y1, u8g2_uint_t x2,
-                   u8g2_uint_t y2) {
-  u8g2_uint_t tmp;
-  u8g2_uint_t x, y;
-  u8g2_uint_t dx, dy;
+/* Bresenham 直线（u8g2 同款算法：不做坐标排序，按实际方向步进，
+ * 保证 (x1,y1)->(x2,y2) 的方向/端点与 u8g2 一致） */
+static void u8g2_draw_line_color(u8g2_t *u, u8g2_uint_t x1, u8g2_uint_t y1,
+                                 u8g2_uint_t x2, u8g2_uint_t y2,
+                                 uint8_t color) {
+  int16_t dx, dy;
   int8_t sx, sy;
   int16_t err, e2;
 
-  if (x1 > x2) {
-    tmp = x1; x1 = x2; x2 = tmp;
-  }
-  if (y1 > y2) {
-    tmp = y1; y1 = y2; y2 = tmp;
-  }
-  dx = (u8g2_uint_t)(x2 - x1);
-  dy = (u8g2_uint_t)(y2 - y1);
-  if (dx == 0 && dy == 0) {
-    u8g2_draw_pixel(u, x1, y1);
-    return;
-  }
-  x = x1;
-  y = y1;
-  sx = (dx > 0) ? 1 : -1; /* 已排序保证 dx>=0，sx 恒为 1 */
-  sy = (dy > 0) ? 1 : -1; /* 已排序保证 dy>=0，sy 恒为 1 */
-  dx = (u8g2_uint_t)(dx * 2);
-  dy = (u8g2_uint_t)(dy * 2);
+  dx = (int16_t)(x2 > x1 ? x2 - x1 : x1 - x2);
+  dy = (int16_t)(y2 > y1 ? y2 - y1 : y1 - y2);
+  sx = (int8_t)((x1 < x2) ? 1 : -1);
+  sy = (int8_t)((y1 < y2) ? 1 : -1);
   err = (int16_t)(dx - dy);
   for (;;) {
-    u8g2_draw_pixel(u, x, y);
-    if (x == x2 && y == y2) {
+    u8g2_pix_set(u, x1, y1, color);
+    if (x1 == x2 && y1 == y2) {
       break;
     }
     e2 = (int16_t)(2 * err);
-    if (e2 > (int16_t)(-dy)) {
-      err -= (int16_t)dy;
-      x += (u8g2_uint_t)sx;
+    if (e2 > -dy) {
+      err -= dy;
+      x1 += (u8g2_uint_t)sx;
     }
-    if (e2 < (int16_t)dx) {
-      err += (int16_t)dx;
-      y += (u8g2_uint_t)sy;
+    if (e2 < dx) {
+      err += dx;
+      y1 += (u8g2_uint_t)sy;
     }
   }
 }
 
-void u8g2_DrawBox(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
-                  u8g2_uint_t h) {
+static void u8g2_draw_box_color(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
+                                u8g2_uint_t w, u8g2_uint_t h,
+                                uint8_t color) {
   u8g2_uint_t i, j;
   u8g2_uint_t x0 = x, y0 = y;
   u8g2_uint_t x1 = (u8g2_uint_t)(x + w - 1), y1 = (u8g2_uint_t)(y + h - 1);
@@ -238,135 +213,145 @@ void u8g2_DrawBox(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
 
   for (j = y0; j <= y1; j++) {
     for (i = x0; i <= x1; i++) {
-      u8g2_pix_write(u, i, j, u->draw_color);
+      u8g2_pix_write(u, i, j, color);
     }
   }
 }
 
-void u8g2_DrawFrame(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
-                    u8g2_uint_t h) {
+static void u8g2_draw_frame_color(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
+                                  u8g2_uint_t w, u8g2_uint_t h,
+                                  uint8_t color) {
   if (w < 2 || h < 2) {
-    u8g2_DrawBox(u, x, y, w, h);
+    u8g2_draw_box_color(u, x, y, w, h, color);
     return;
   }
-  u8g2_DrawHLine(u, x, y, w);
-  u8g2_DrawHLine(u, x, (u8g2_uint_t)(y + h - 1), w);
-  u8g2_DrawVLine(u, x, y, h);
-  u8g2_DrawVLine(u, (u8g2_uint_t)(x + w - 1), y, h);
+  u8g2_draw_hline_color(u, x, y, w, color);
+  u8g2_draw_hline_color(u, x, (u8g2_uint_t)(y + h - 1), w, color);
+  u8g2_draw_vline_color(u, x, y, h, color);
+  u8g2_draw_vline_color(u, (u8g2_uint_t)(x + w - 1), y, h, color);
 }
 
 /* 圆角矩形（四个角画 1/4 圆，r==0 退化为直角矩形） */
-static void u8g2_draw_corner(u8g2_t *u, u8g2_uint_t cx, u8g2_uint_t cy,
-                             int8_t sx, int8_t sy, u8g2_uint_t rad,
-                             uint8_t filled) {
+static void u8g2_draw_corner_color(u8g2_t *u, u8g2_uint_t cx, u8g2_uint_t cy,
+                                   int8_t sx, int8_t sy, u8g2_uint_t rad,
+                                   uint8_t filled, uint8_t color) {
   u8g2_uint_t x, y;
   int16_t d;
   for (y = 0; y <= rad; y++) {
     for (x = 0; x <= rad; x++) {
       d = (int16_t)((int16_t)x * x + (int16_t)y * y);
       if (filled ? (d <= (int16_t)(rad * rad)) : (d == (int16_t)(rad * rad))) {
-        u8g2_draw_pixel(u, (u8g2_uint_t)(cx + (int16_t)x * sx),
-                        (u8g2_uint_t)(cy + (int16_t)y * sy));
+        u8g2_pix_set(u, (u8g2_uint_t)(cx + (int16_t)x * sx),
+                     (u8g2_uint_t)(cy + (int16_t)y * sy), color);
       }
     }
   }
 }
 
-void u8g2_DrawRBox(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
-                   u8g2_uint_t h, u8g2_uint_t r) {
+static void u8g2_draw_rbox_color(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
+                                 u8g2_uint_t w, u8g2_uint_t h, u8g2_uint_t r,
+                                 uint8_t color) {
   if (r == 0) {
-    u8g2_DrawBox(u, x, y, w, h);
+    u8g2_draw_box_color(u, x, y, w, h, color);
     return;
   }
   if (w < 2 * r + 1 || h < 2 * r + 1) {
-    u8g2_DrawBox(u, x, y, w, h);
+    u8g2_draw_box_color(u, x, y, w, h, color);
     return;
   }
   /* 中间矩形 */
-  u8g2_DrawBox(u, (u8g2_uint_t)(x + r), y, (u8g2_uint_t)(w - 2 * r), h);
-  u8g2_DrawBox(u, x, (u8g2_uint_t)(y + r), r, (u8g2_uint_t)(h - 2 * r));
-  u8g2_DrawBox(u, (u8g2_uint_t)(x + w - r), (u8g2_uint_t)(y + r), r,
-               (u8g2_uint_t)(h - 2 * r));
+  u8g2_draw_box_color(u, (u8g2_uint_t)(x + r), y, (u8g2_uint_t)(w - 2 * r), h,
+                      color);
+  u8g2_draw_box_color(u, x, (u8g2_uint_t)(y + r), r, (u8g2_uint_t)(h - 2 * r),
+                      color);
+  u8g2_draw_box_color(u, (u8g2_uint_t)(x + w - r), (u8g2_uint_t)(y + r), r,
+                      (u8g2_uint_t)(h - 2 * r), color);
   /* 四个角 */
-  u8g2_draw_corner(u, (u8g2_uint_t)(x + r), (u8g2_uint_t)(y + r), -1, -1, r, 1);
-  u8g2_draw_corner(u, (u8g2_uint_t)(x + w - r - 1), (u8g2_uint_t)(y + r), 1, -1,
-                   r, 1);
-  u8g2_draw_corner(u, (u8g2_uint_t)(x + r), (u8g2_uint_t)(y + h - r - 1), -1, 1,
-                   r, 1);
-  u8g2_draw_corner(u, (u8g2_uint_t)(x + w - r - 1),
-                   (u8g2_uint_t)(y + h - r - 1), 1, 1, r, 1);
+  u8g2_draw_corner_color(u, (u8g2_uint_t)(x + r), (u8g2_uint_t)(y + r), -1, -1,
+                         r, 1, color);
+  u8g2_draw_corner_color(u, (u8g2_uint_t)(x + w - r - 1), (u8g2_uint_t)(y + r),
+                         1, -1, r, 1, color);
+  u8g2_draw_corner_color(u, (u8g2_uint_t)(x + r), (u8g2_uint_t)(y + h - r - 1),
+                         -1, 1, r, 1, color);
+  u8g2_draw_corner_color(u, (u8g2_uint_t)(x + w - r - 1),
+                         (u8g2_uint_t)(y + h - r - 1), 1, 1, r, 1, color);
 }
 
-void u8g2_DrawRFrame(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
-                     u8g2_uint_t h, u8g2_uint_t r) {
+static void u8g2_draw_rframe_color(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
+                                   u8g2_uint_t w, u8g2_uint_t h, u8g2_uint_t r,
+                                   uint8_t color) {
   if (r == 0) {
-    u8g2_DrawFrame(u, x, y, w, h);
+    u8g2_draw_frame_color(u, x, y, w, h, color);
     return;
   }
   if (w < 2 * r + 1 || h < 2 * r + 1) {
-    u8g2_DrawFrame(u, x, y, w, h);
+    u8g2_draw_frame_color(u, x, y, w, h, color);
     return;
   }
-  u8g2_DrawHLine(u, (u8g2_uint_t)(x + r), y, (u8g2_uint_t)(w - 2 * r));
-  u8g2_DrawHLine(u, (u8g2_uint_t)(x + r), (u8g2_uint_t)(y + h - 1),
-                 (u8g2_uint_t)(w - 2 * r));
-  u8g2_DrawVLine(u, x, (u8g2_uint_t)(y + r), (u8g2_uint_t)(h - 2 * r));
-  u8g2_DrawVLine(u, (u8g2_uint_t)(x + w - 1), (u8g2_uint_t)(y + r),
-                 (u8g2_uint_t)(h - 2 * r));
-  u8g2_draw_corner(u, (u8g2_uint_t)(x + r), (u8g2_uint_t)(y + r), -1, -1, r, 0);
-  u8g2_draw_corner(u, (u8g2_uint_t)(x + w - r - 1), (u8g2_uint_t)(y + r), 1, -1,
-                   r, 0);
-  u8g2_draw_corner(u, (u8g2_uint_t)(x + r), (u8g2_uint_t)(y + h - r - 1), -1, 1,
-                   r, 0);
-  u8g2_draw_corner(u, (u8g2_uint_t)(x + w - r - 1),
-                   (u8g2_uint_t)(y + h - r - 1), 1, 1, r, 0);
+  u8g2_draw_hline_color(u, (u8g2_uint_t)(x + r), y, (u8g2_uint_t)(w - 2 * r),
+                        color);
+  u8g2_draw_hline_color(u, (u8g2_uint_t)(x + r), (u8g2_uint_t)(y + h - 1),
+                        (u8g2_uint_t)(w - 2 * r), color);
+  u8g2_draw_vline_color(u, x, (u8g2_uint_t)(y + r), (u8g2_uint_t)(h - 2 * r),
+                        color);
+  u8g2_draw_vline_color(u, (u8g2_uint_t)(x + w - 1), (u8g2_uint_t)(y + r),
+                        (u8g2_uint_t)(h - 2 * r), color);
+  u8g2_draw_corner_color(u, (u8g2_uint_t)(x + r), (u8g2_uint_t)(y + r), -1, -1,
+                         r, 0, color);
+  u8g2_draw_corner_color(u, (u8g2_uint_t)(x + w - r - 1), (u8g2_uint_t)(y + r),
+                         1, -1, r, 0, color);
+  u8g2_draw_corner_color(u, (u8g2_uint_t)(x + r), (u8g2_uint_t)(y + h - r - 1),
+                         -1, 1, r, 0, color);
+  u8g2_draw_corner_color(u, (u8g2_uint_t)(x + w - r - 1),
+                         (u8g2_uint_t)(y + h - r - 1), 1, 1, r, 0, color);
 }
 
-void u8g2_DrawCircle(u8g2_t *u, u8g2_uint_t x0, u8g2_uint_t y0,
-                     u8g2_uint_t rad) {
+static void u8g2_draw_circle_color(u8g2_t *u, u8g2_uint_t x0, u8g2_uint_t y0,
+                                   u8g2_uint_t rad, uint8_t color) {
   u8g2_uint_t x, y;
   int16_t d;
   if (rad == 0) {
-    u8g2_draw_pixel(u, x0, y0);
+    u8g2_pix_set(u, x0, y0, color);
     return;
   }
   for (y = 0; y <= rad; y++) {
     for (x = 0; x <= rad; x++) {
       d = (int16_t)((int16_t)x * x + (int16_t)y * y);
       if (d == (int16_t)(rad * rad)) {
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x0 + x), (u8g2_uint_t)(y0 - y));
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x0 + x), (u8g2_uint_t)(y0 + y));
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x0 - x), (u8g2_uint_t)(y0 - y));
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x0 - x), (u8g2_uint_t)(y0 + y));
+        u8g2_pix_set(u, (u8g2_uint_t)(x0 + x), (u8g2_uint_t)(y0 - y), color);
+        u8g2_pix_set(u, (u8g2_uint_t)(x0 + x), (u8g2_uint_t)(y0 + y), color);
+        u8g2_pix_set(u, (u8g2_uint_t)(x0 - x), (u8g2_uint_t)(y0 - y), color);
+        u8g2_pix_set(u, (u8g2_uint_t)(x0 - x), (u8g2_uint_t)(y0 + y), color);
       }
     }
   }
 }
 
-void u8g2_DrawDisc(u8g2_t *u, u8g2_uint_t x0, u8g2_uint_t y0,
-                   u8g2_uint_t rad) {
+static void u8g2_draw_disc_color(u8g2_t *u, u8g2_uint_t x0, u8g2_uint_t y0,
+                                 u8g2_uint_t rad, uint8_t color) {
   u8g2_uint_t x, y;
   int16_t d;
   if (rad == 0) {
-    u8g2_draw_pixel(u, x0, y0);
+    u8g2_pix_set(u, x0, y0, color);
     return;
   }
   for (y = 0; y <= rad; y++) {
     for (x = 0; x <= rad; x++) {
       d = (int16_t)((int16_t)x * x + (int16_t)y * y);
       if (d <= (int16_t)(rad * rad)) {
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x0 + x), (u8g2_uint_t)(y0 - y));
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x0 + x), (u8g2_uint_t)(y0 + y));
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x0 - x), (u8g2_uint_t)(y0 - y));
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x0 - x), (u8g2_uint_t)(y0 + y));
+        u8g2_pix_set(u, (u8g2_uint_t)(x0 + x), (u8g2_uint_t)(y0 - y), color);
+        u8g2_pix_set(u, (u8g2_uint_t)(x0 + x), (u8g2_uint_t)(y0 + y), color);
+        u8g2_pix_set(u, (u8g2_uint_t)(x0 - x), (u8g2_uint_t)(y0 - y), color);
+        u8g2_pix_set(u, (u8g2_uint_t)(x0 - x), (u8g2_uint_t)(y0 + y), color);
       }
     }
   }
 }
 
-void u8g2_DrawTriangle(u8g2_t *u, u8g2_uint_t x0, u8g2_uint_t y0,
-                       u8g2_uint_t x1, u8g2_uint_t y1, u8g2_uint_t x2,
-                       u8g2_uint_t y2) {
+static void u8g2_draw_triangle_color(u8g2_t *u, u8g2_uint_t x0, u8g2_uint_t y0,
+                                     u8g2_uint_t x1, u8g2_uint_t y1,
+                                     u8g2_uint_t x2, u8g2_uint_t y2,
+                                     uint8_t color) {
   u8g2_uint_t ymin = y0, ymax = y0;
   u8g2_uint_t y;
   u8g2_uint_t xs[2];
@@ -409,14 +394,15 @@ void u8g2_DrawTriangle(u8g2_t *u, u8g2_uint_t x0, u8g2_uint_t y0,
       if (a > b) {
         u8g2_uint_t t = a; a = b; b = t;
       }
-      u8g2_DrawHLine(u, a, y, (u8g2_uint_t)(b - a + 1));
+      u8g2_draw_hline_color(u, a, y, (u8g2_uint_t)(b - a + 1), color);
     }
   }
 }
 
-/* ==================== XBM 位图 ==================== */
-void u8g2_DrawXBM(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
-                  u8g2_uint_t h, const uint8_t *bitmap) {
+/* XBM 位图：每行像素 MSB 在前，行尾补齐到整字节；1 位画 color，0 位跳过 */
+static void u8g2_draw_xbm_color(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
+                                u8g2_uint_t w, u8g2_uint_t h,
+                                const uint8_t *bitmap, uint8_t color) {
   u8g2_uint_t i, j;
   u8g2_uint_t byte_per_row = (w + 7) / 8;
 
@@ -424,15 +410,141 @@ void u8g2_DrawXBM(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
     for (i = 0; i < w; i++) {
       uint8_t b = bitmap[j * byte_per_row + (i >> 3)];
       if (b & (0x80 >> (i & 7))) {
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x + i), (u8g2_uint_t)(y + j));
+        u8g2_pix_set(u, (u8g2_uint_t)(x + i), (u8g2_uint_t)(y + j), color);
       }
     }
   }
 }
 
+/* ==================== ui_* 彩色 API（操作全局 u8g2 实例） ==================== */
+void ui_clear(void) { u8g2_ClearBuffer(&u8g2); }
+
+void ui_send_buffer(void) { u8g2_SendBuffer(&u8g2); }
+
+void ui_draw_pixel(u8g2_uint_t x, u8g2_uint_t y, uint8_t color) {
+  u8g2_pix_set(&u8g2, x, y, color);
+}
+
+void ui_draw_hline(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t len,
+                   uint8_t color) {
+  u8g2_draw_hline_color(&u8g2, x, y, len, color);
+}
+
+void ui_draw_vline(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t len,
+                   uint8_t color) {
+  u8g2_draw_vline_color(&u8g2, x, y, len, color);
+}
+
+void ui_draw_line(u8g2_uint_t x1, u8g2_uint_t y1, u8g2_uint_t x2,
+                  u8g2_uint_t y2, uint8_t color) {
+  u8g2_draw_line_color(&u8g2, x1, y1, x2, y2, color);
+}
+
+void ui_draw_box(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w, u8g2_uint_t h,
+                 uint8_t color) {
+  u8g2_draw_box_color(&u8g2, x, y, w, h, color);
+}
+
+void ui_draw_frame(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w, u8g2_uint_t h,
+                   uint8_t color) {
+  u8g2_draw_frame_color(&u8g2, x, y, w, h, color);
+}
+
+void ui_draw_rbox(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w, u8g2_uint_t h,
+                  u8g2_uint_t r, uint8_t color) {
+  u8g2_draw_rbox_color(&u8g2, x, y, w, h, r, color);
+}
+
+void ui_draw_rframe(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
+                    u8g2_uint_t h, u8g2_uint_t r, uint8_t color) {
+  u8g2_draw_rframe_color(&u8g2, x, y, w, h, r, color);
+}
+
+void ui_draw_circle(u8g2_uint_t x0, u8g2_uint_t y0, u8g2_uint_t rad,
+                    uint8_t color) {
+  u8g2_draw_circle_color(&u8g2, x0, y0, rad, color);
+}
+
+void ui_draw_disc(u8g2_uint_t x0, u8g2_uint_t y0, u8g2_uint_t rad,
+                  uint8_t color) {
+  u8g2_draw_disc_color(&u8g2, x0, y0, rad, color);
+}
+
+void ui_draw_triangle(u8g2_uint_t x0, u8g2_uint_t y0, u8g2_uint_t x1,
+                      u8g2_uint_t y1, u8g2_uint_t x2, u8g2_uint_t y2,
+                      uint8_t color) {
+  u8g2_draw_triangle_color(&u8g2, x0, y0, x1, y1, x2, y2, color);
+}
+
+void ui_draw_xbm(u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w, u8g2_uint_t h,
+                 const uint8_t *bitmap, uint8_t color) {
+  u8g2_draw_xbm_color(&u8g2, x, y, w, h, bitmap, color);
+}
+
+/* ==================== u8g2 兼容层（默认白字） ==================== */
+/* u8g2_* 保持原签名，内部转发到带色实现并传入当前 draw_color（默认 1=白）。
+ * 本框架为单显示实例，u 与全局 u8g2 共享同一状态。 */
+void u8g2_DrawPixel(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y) {
+  u8g2_pix_set(u, x, y, u->draw_color);
+}
+
+void u8g2_DrawHLine(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t len) {
+  u8g2_draw_hline_color(u, x, y, len, u->draw_color);
+}
+
+void u8g2_DrawVLine(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t len) {
+  u8g2_draw_vline_color(u, x, y, len, u->draw_color);
+}
+
+void u8g2_DrawLine(u8g2_t *u, u8g2_uint_t x1, u8g2_uint_t y1, u8g2_uint_t x2,
+                   u8g2_uint_t y2) {
+  u8g2_draw_line_color(u, x1, y1, x2, y2, u->draw_color);
+}
+
+void u8g2_DrawBox(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
+                  u8g2_uint_t h) {
+  u8g2_draw_box_color(u, x, y, w, h, u->draw_color);
+}
+
+void u8g2_DrawFrame(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
+                    u8g2_uint_t h) {
+  u8g2_draw_frame_color(u, x, y, w, h, u->draw_color);
+}
+
+void u8g2_DrawRBox(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
+                   u8g2_uint_t h, u8g2_uint_t r) {
+  u8g2_draw_rbox_color(u, x, y, w, h, r, u->draw_color);
+}
+
+void u8g2_DrawRFrame(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
+                     u8g2_uint_t h, u8g2_uint_t r) {
+  u8g2_draw_rframe_color(u, x, y, w, h, r, u->draw_color);
+}
+
+void u8g2_DrawCircle(u8g2_t *u, u8g2_uint_t x0, u8g2_uint_t y0,
+                     u8g2_uint_t rad) {
+  u8g2_draw_circle_color(u, x0, y0, rad, u->draw_color);
+}
+
+void u8g2_DrawDisc(u8g2_t *u, u8g2_uint_t x0, u8g2_uint_t y0,
+                   u8g2_uint_t rad) {
+  u8g2_draw_disc_color(u, x0, y0, rad, u->draw_color);
+}
+
+void u8g2_DrawTriangle(u8g2_t *u, u8g2_uint_t x0, u8g2_uint_t y0,
+                       u8g2_uint_t x1, u8g2_uint_t y1, u8g2_uint_t x2,
+                       u8g2_uint_t y2) {
+  u8g2_draw_triangle_color(u, x0, y0, x1, y1, x2, y2, u->draw_color);
+}
+
+void u8g2_DrawXBM(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
+                  u8g2_uint_t h, const uint8_t *bitmap) {
+  u8g2_draw_xbm_color(u, x, y, w, h, bitmap, u->draw_color);
+}
+
 void u8g2_DrawXBMP(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, u8g2_uint_t w,
                    u8g2_uint_t h, const uint8_t *bitmap) {
-  u8g2_DrawXBM(u, x, y, w, h, bitmap);
+  u8g2_draw_xbm_color(u, x, y, w, h, bitmap, u->draw_color);
 }
 
 /* ==================== 字体解码 ==================== */
@@ -573,14 +685,12 @@ static void u8g2_font_decode_len(u8g2_t *u, uint8_t len,
     u8g2_uint_t i;
 
     if (is_foreground) {
-      u->draw_color = decode->fg_color; /* 末尾统一恢复 */
       for (i = 0; i < current; i++) {
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x + i), y);
+        u8g2_pix_set(u, (u8g2_uint_t)(x + i), y, decode->fg_color);
       }
     } else if (decode->is_transparent == 0) {
-      u->draw_color = decode->bg_color;
       for (i = 0; i < current; i++) {
-        u8g2_draw_pixel(u, (u8g2_uint_t)(x + i), y);
+        u8g2_pix_set(u, (u8g2_uint_t)(x + i), y, decode->bg_color);
       }
     }
 
@@ -597,8 +707,10 @@ static void u8g2_font_decode_len(u8g2_t *u, uint8_t len,
   decode->y = ly;
 }
 
-/* 初始化字形解码：读几何（宽度/高度），设定前景/背景色 */
-static void u8g2_font_setup_decode(u8g2_t *u, const uint8_t *glyph_data) {
+/* 初始化字形解码：读几何（宽度/高度），设定前景/背景色
+ * （bg 恒为 fg 取反：实心模式下背景不与前景同色） */
+static void u8g2_font_setup_decode(u8g2_t *u, const uint8_t *glyph_data,
+                                   uint8_t fg_color) {
   u8g2_font_decode_t *decode = &u->font_decode;
 
   decode->decode_ptr = glyph_data;
@@ -609,8 +721,8 @@ static void u8g2_font_setup_decode(u8g2_t *u, const uint8_t *glyph_data) {
   decode->glyph_height =
       u8g2_font_decode_get_unsigned_bits(u, u->font_info.bits_per_char_height);
 
-  decode->fg_color = u->draw_color;
-  decode->bg_color = (uint8_t)(decode->fg_color == 0 ? 1 : 0);
+  decode->fg_color = fg_color;
+  decode->bg_color = (uint8_t)(fg_color == 0 ? 1 : 0);
 }
 
 /*
@@ -619,14 +731,15 @@ static void u8g2_font_setup_decode(u8g2_t *u, const uint8_t *glyph_data) {
  * RLE 运行段：每行 [背景长, 前景长] 交替，行尾带 1bit 继续标志，
  * 重复读段直到标志为 0；外层循环直到绘制完 h 行。
  */
-static int8_t u8g2_font_decode_glyph(u8g2_t *u, const uint8_t *glyph_data) {
+static int8_t u8g2_font_decode_glyph(u8g2_t *u, const uint8_t *glyph_data,
+                                     uint8_t fg_color) {
   uint8_t a, b;
   int8_t x, y;
   int8_t d;
   int8_t h;
   u8g2_font_decode_t *decode = &u->font_decode;
 
-  u8g2_font_setup_decode(u, glyph_data);
+  u8g2_font_setup_decode(u, glyph_data, fg_color);
   h = (int8_t)u->font_decode.glyph_height;
 
   x = u8g2_font_decode_get_signed_bits(u, u->font_info.bits_per_char_x);
@@ -655,16 +768,16 @@ static int8_t u8g2_font_decode_glyph(u8g2_t *u, const uint8_t *glyph_data) {
       }
     }
 
-    /* 解码过程会改写 draw_color，这里恢复 */
-    u->draw_color = decode->fg_color;
   }
   return d;
 }
 
 /* ==================== 文本绘制 ==================== */
-u8g2_uint_t u8g2_DrawGlyph(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
-                           uint16_t encoding) {
-  u8g2_uint_t dx = 0;
+/* 带色字形绘制核心：fg 为前景索引，背景由 setup_decode 取反；
+ * 返回横向步进（advance），调用方内部累加。 */
+static u8g2_uint_t u8g2_draw_glyph_color(u8g2_t *u, u8g2_uint_t x,
+                                         u8g2_uint_t y, uint16_t encoding,
+                                         uint8_t fg) {
   const uint8_t *glyph_data;
 
   if (u->font == NULL) return 0;
@@ -676,15 +789,26 @@ u8g2_uint_t u8g2_DrawGlyph(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
 
   glyph_data = u8g2_font_get_glyph_data(u, encoding);
   if (glyph_data != NULL) {
-    dx = (u8g2_uint_t)u8g2_font_decode_glyph(u, glyph_data);
+    return (u8g2_uint_t)u8g2_font_decode_glyph(u, glyph_data, fg);
   }
-  return dx; /* 返回步进（advance），u8g2_DrawStr 内部累加 */
+  return 0;
+}
+
+u8g2_uint_t ui_draw_glyph(u8g2_uint_t x, u8g2_uint_t y, uint16_t encoding,
+                          uint8_t color) {
+  return u8g2_draw_glyph_color(&u8g2, x, y, encoding, color);
+}
+
+u8g2_uint_t u8g2_DrawGlyph(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
+                           uint16_t encoding) {
+  return u8g2_draw_glyph_color(u, x, y, encoding, u->draw_color);
 }
 
 u8g2_uint_t u8g2_DrawStr(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
                          const char *str) {
   while (*str != '\0') {
-    x += u8g2_DrawGlyph(u, x, y, (uint16_t)(uint8_t)(*str));
+    x += u8g2_draw_glyph_color(u, x, y, (uint16_t)(uint8_t)(*str),
+                               u->draw_color);
     str++;
   }
   return x;
@@ -727,7 +851,27 @@ u8g2_uint_t u8g2_DrawUTF8(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
                           const char *str) {
   const char *p = str;
   while (*p != '\0') {
-    x += u8g2_DrawGlyph(u, x, y, (uint16_t)u8g2_utf8_next(&p));
+    x += u8g2_draw_glyph_color(u, x, y, (uint16_t)u8g2_utf8_next(&p),
+                               u->draw_color);
+  }
+  return x;
+}
+
+u8g2_uint_t ui_draw_str(u8g2_uint_t x, u8g2_uint_t y, const char *str,
+                        uint8_t color) {
+  while (*str != '\0') {
+    x += u8g2_draw_glyph_color(&u8g2, x, y, (uint16_t)(uint8_t)(*str), color);
+    str++;
+  }
+  return x;
+}
+
+u8g2_uint_t ui_draw_utf8(u8g2_uint_t x, u8g2_uint_t y, const char *str,
+                         uint8_t color) {
+  const char *p = str;
+  while (*p != '\0') {
+    x += u8g2_draw_glyph_color(&u8g2, x, y, (uint16_t)u8g2_utf8_next(&p),
+                               color);
   }
   return x;
 }
@@ -739,7 +883,7 @@ int8_t u8g2_GetGlyphWidth(u8g2_t *u, uint16_t encoding) {
   if (glyph_data == NULL) {
     return 0;
   }
-  u8g2_font_setup_decode(u, glyph_data);
+  u8g2_font_setup_decode(u, glyph_data, 0); /* 测量只读几何，颜色无关 */
   u8g2_font_decode_get_signed_bits(u, u->font_info.bits_per_char_x);
   u8g2_font_decode_get_signed_bits(u, u->font_info.bits_per_char_y);
   /* 字形宽度在 u->font_decode.glyph_width 中 */
