@@ -79,90 +79,110 @@ static void LCD_Address_Set(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 void Lcd_Init(void)
 {
     SCREEN_BLC_CLR();
-    // 复位
-    SCREEN_RST_CLR();
     // 关闭片选、DC默认高
     SCREEN_CS_SET();
     SCREEN_DC_SET();
 
     // ---- 复位 LCD ----
     SCREEN_RST_SET();
-    mDelaymS(20);
+    mDelaymS(10);
     SCREEN_RST_CLR();       // 拉低复位
     mDelaymS(20);
     SCREEN_RST_SET();       // 拉高，结束复位
     mDelaymS(100);          // 等待内部稳定
 
-    // ---- ST7789V 初始化序列 (与STM32代码一致) ----
+    //BOE154IPS ST7789V2初始化//			
     LCD_WR_REG(0x11);
-    mDelaymS(480);
-    // 设置方向
+    mDelaymS(120);//delay_ms 120ms
+    //--------------------------------------Display Setting------------------------------------------//
     LCD_WR_REG(0x36);
-    if (USE_HORIZONTAL == 0)      LCD_WR_DATA8(0x00);
-    else if (USE_HORIZONTAL == 1) LCD_WR_DATA8(0xC0);
-    else if (USE_HORIZONTAL == 2) LCD_WR_DATA8(0x70);
-    else                          LCD_WR_DATA8(0xA0);
-
-    LCD_WR_REG(0x3A);
-    LCD_WR_DATA8(0x05);           // 16位色
-    LCD_WR_REG(0x21);             // 显示反转
-
-    // 列地址范围
-    LCD_WR_REG(0x2A);
+    if(USE_HORIZONTAL==0)LCD_WR_DATA8(0x00);
+    else if(USE_HORIZONTAL==1)LCD_WR_DATA8(0xC0);
+    else if(USE_HORIZONTAL==2)LCD_WR_DATA8(0x70);
+    else LCD_WR_DATA8(0xA0);
+    LCD_WR_REG(0x3a);
+    LCD_WR_DATA8(0x05);
+    LCD_WR_REG(0x21);
+    LCD_WR_REG(0x2a);
     LCD_WR_DATA8(0x00);
     LCD_WR_DATA8(0x00);
     LCD_WR_DATA8(0x00);
-    LCD_WR_DATA8(0xEF);
-    // 行地址范围
-    LCD_WR_REG(0x2B);
+    LCD_WR_DATA8(0xef);
+    LCD_WR_REG(0x2b);
     LCD_WR_DATA8(0x00);
     LCD_WR_DATA8(0x00);
     LCD_WR_DATA8(0x00);
-    LCD_WR_DATA8(0xEF);
-
-    // 帧率
-    LCD_WR_REG(0xB2);
-    LCD_WR_DATA8(0x0C);
-    LCD_WR_DATA8(0x0C);
+    LCD_WR_DATA8(0xef);
+    //--------------------------------ST7789V Frame rate setting----------------------------------//
+    LCD_WR_REG(0xb2);
+    LCD_WR_DATA8(0x0c);
+    LCD_WR_DATA8(0x0c);
     LCD_WR_DATA8(0x00);
     LCD_WR_DATA8(0x33);
     LCD_WR_DATA8(0x33);
-    LCD_WR_REG(0xB7);
+    LCD_WR_REG(0xb7);
     LCD_WR_DATA8(0x35);
-
-    // 电源
-    LCD_WR_REG(0xBB);
-    LCD_WR_DATA8(0x1F);
-    LCD_WR_REG(0xC0);
-    LCD_WR_DATA8(0x2C);
-    LCD_WR_REG(0xC2);
+    //---------------------------------ST7789V Power setting--------------------------------------//
+    LCD_WR_REG(0xbb);
+    LCD_WR_DATA8(0x1f);
+    LCD_WR_REG(0xc0);
+    LCD_WR_DATA8(0x2c);
+    LCD_WR_REG(0xc2);
     LCD_WR_DATA8(0x01);
-    LCD_WR_REG(0xC3);
+    LCD_WR_REG(0xc3);
     LCD_WR_DATA8(0x12);
-    LCD_WR_REG(0xC4);
+    LCD_WR_REG(0xc4);
     LCD_WR_DATA8(0x20);
-    LCD_WR_REG(0xC6);
-    LCD_WR_DATA8(0x0F);
-    LCD_WR_REG(0xD0);
-    LCD_WR_DATA8(0xA4);
-    LCD_WR_DATA8(0xA1);
+    LCD_WR_REG(0xc6);
+    LCD_WR_DATA8(0x0f);
+    LCD_WR_REG(0xd0);
+    LCD_WR_DATA8(0xa4);
+    LCD_WR_DATA8(0xa1);
+    //--------------------------------ST7789V gamma setting--------------------------------------//
+    LCD_WR_REG(0xe0);
+    LCD_WR_DATA8(0xd0);
+    LCD_WR_DATA8(0x08);
+    LCD_WR_DATA8(0x11);
+    LCD_WR_DATA8(0x08);
+    LCD_WR_DATA8(0x0c);
+    LCD_WR_DATA8(0x15);
+    LCD_WR_DATA8(0x39);
+    LCD_WR_DATA8(0x33);
+    LCD_WR_DATA8(0x50);
+    LCD_WR_DATA8(0x36);
+    LCD_WR_DATA8(0x13);
+    LCD_WR_DATA8(0x14);
+    LCD_WR_DATA8(0x29);
+    LCD_WR_DATA8(0x2d);
+    LCD_WR_REG(0xe1);
+    LCD_WR_DATA8(0xd0);
+    LCD_WR_DATA8(0x08);
+    LCD_WR_DATA8(0x10);
+    LCD_WR_DATA8(0x08);
+    LCD_WR_DATA8(0x06);
+    LCD_WR_DATA8(0x06);
+    LCD_WR_DATA8(0x39);
+    LCD_WR_DATA8(0x44);
+    LCD_WR_DATA8(0x51);
+    LCD_WR_DATA8(0x0b);
+    LCD_WR_DATA8(0x16);
+    LCD_WR_DATA8(0x14);
+    LCD_WR_DATA8(0x2f);
+    LCD_WR_DATA8(0x31);
 
-    // Gamma
-    LCD_WR_REG(0xE0);
-    LCD_WR_DATA8(0xD0); LCD_WR_DATA8(0x08); LCD_WR_DATA8(0x11);
-    LCD_WR_DATA8(0x08); LCD_WR_DATA8(0x0C); LCD_WR_DATA8(0x15);
-    LCD_WR_DATA8(0x39); LCD_WR_DATA8(0x33); LCD_WR_DATA8(0x50);
-    LCD_WR_DATA8(0x36); LCD_WR_DATA8(0x13); LCD_WR_DATA8(0x14);
-    LCD_WR_DATA8(0x29); LCD_WR_DATA8(0x2D);
+    LCD_WR_REG(0x2A); //Column Address Set
+    LCD_WR_DATA8(0x00);
+    LCD_WR_DATA8(0x00); //0
+    LCD_WR_DATA8(0x00);
+    LCD_WR_DATA8(0xEF); //239
 
-    LCD_WR_REG(0xE1);
-    LCD_WR_DATA8(0xD0); LCD_WR_DATA8(0x08); LCD_WR_DATA8(0x10);
-    LCD_WR_DATA8(0x08); LCD_WR_DATA8(0x06); LCD_WR_DATA8(0x06);
-    LCD_WR_DATA8(0x39); LCD_WR_DATA8(0x44); LCD_WR_DATA8(0x51);
-    LCD_WR_DATA8(0x0B); LCD_WR_DATA8(0x16); LCD_WR_DATA8(0x14);
-    LCD_WR_DATA8(0x2F); LCD_WR_DATA8(0x31);
+    LCD_WR_REG(0x2B); //Row Address Set
+    LCD_WR_DATA8(0x00);
+    LCD_WR_DATA8(0x00); //0
+    LCD_WR_DATA8(0x00);
+    LCD_WR_DATA8(0xEF); //239
 
-    LCD_WR_REG(0x29);             // 显示开
+    LCD_WR_REG(0x29);	//Display on	
 
     SCREEN_BLC_SET();             // 点亮背光
 }

@@ -20,7 +20,7 @@
 #define LCD_GRAY          0x7BEF
 
 // 屏幕方向（0~3，根据实际接线调整）
-#define USE_HORIZONTAL 1   // 0:竖屏, 1:横屏（右转）, 2:横屏（左转）, 3:竖屏翻转
+#define USE_HORIZONTAL 2   // 0:竖屏, 1:横屏（右转）, 2:横屏（左转）, 3:竖屏翻转
 
 // 外部变量
 extern uint16_t BACK_COLOR;   // 背景色

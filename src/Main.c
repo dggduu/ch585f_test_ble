@@ -43,7 +43,7 @@ int main() {
     /* 5. ≥ı ºªØ LCD£®ST7789V£¨240x240£© */
     PRINT("Initializing LCD... ");
     Lcd_Init();
-    LCD_Clear(LCD_RED);
+    LCD_Clear(LCD_BLUE);
     PRINT("CON\r\n");
     LCD_ShowString(10, 10, "Hello CH585!", LCD_WHITE);
     LCD_ShowString(10, 30, "LCD Test OK", LCD_GREEN);
