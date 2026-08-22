@@ -98,9 +98,27 @@ void u8g2_SetPowerSave(u8g2_t *u, uint8_t is_enable) {
 /* ==================== 缓冲管理 ==================== */
 void u8g2_ClearBuffer(u8g2_t *u) { memset(u->pix_buf, 0, u->pix_buf_size); }
 
+/* 上次实际送显的帧内容（影子缓冲），用于脏帧检测 */
+static uint8_t u8g2_last_buf[U8G2_PIX_BUF_BYTES];
+static bool   u8g2_first_flush = true;
+
+bool u8g2_BufferChanged(u8g2_t *u) {
+  if (u == NULL || u->pix_buf == NULL) return true;
+  if (u8g2_first_flush ||
+      memcmp(u->pix_buf, u8g2_last_buf, u->pix_buf_size) != 0) {
+    u8g2_first_flush = false;
+    memcpy(u8g2_last_buf, u->pix_buf, u->pix_buf_size);
+    return true;
+  }
+  return false;
+}
+
 /* 颜色索引 0 恒为背景色（黑色）：清空时填 0 即得背景。
  * 整屏索引缓冲一次发送：内部由 bsp 的 LCD_SendBuffer 逐像素解出索引、
- * 经调色板映射为 RGB565 批量 SPI 发送，无需逐行切换窗口。 */
+ * 经调色板映射为 RGB565 批量 SPI 发送，无需逐行切换窗口。
+ * 注意：这是一次阻塞的全屏 SPI 刷新（240x240≈115KB，约 3~5ms），
+ * 期间 TMOS_SystemProcess 无法运行；静态画面请用 u8g2_BufferChanged
+ * 判定后再调用，避免无谓阻塞 BLE。 */
 void u8g2_SendBuffer(u8g2_t *u) {
   LCD_SendBuffer(u->pix_buf, u->palette, u->width, u->height,
                  U8G2_PORTING_BPP);

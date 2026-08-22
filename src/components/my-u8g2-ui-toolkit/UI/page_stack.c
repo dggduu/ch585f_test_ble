@@ -2,10 +2,10 @@
 #include "screen.h"
 #include "bsp_timer.h"
 
-// È«¾ÖÒ³ÃæÕ»ÊµÀı
+// å…¨å±€é¡µé¢æ ˆå®ä¾‹
 page_stack_t g_page_stack;
 
-// ´¿ÕûÊı»º¶¯º¯Êı
+// çº¯æ•´æ•°ç¼“åŠ¨å‡½æ•°
 static inline int32_t QuadraticEaseOut_Int(int32_t t) {
     int32_t diff = 256 - t;
     return 256 - ((diff * diff) >> 8);
@@ -62,7 +62,7 @@ void page_stack_portal_toggle(page_stack_t *ps, const portal_component_t *comp, 
             
             ps->is_portal_running = true;
             ps->is_exiting = false;
-            ps->ani_progress = 0; // ÕûÊı»¯£º·¶Î§ 0 ~ 256
+            ps->ani_progress = 0; // æ•´æ•°åŒ–ï¼šèŒƒå›´ 0 ~ 256
         }
     }
 }
@@ -72,28 +72,29 @@ void page_update(page_stack_t *ps, btn_type_t btn) {
     
     ps->main_tick = BSP_Timer_GetMillis();
 
-    // 1. ÊäÈëÀ¹½ØÓë·Ö·¢
+
+    // 1. è¾“å…¥æ‹¦æˆªä¸åˆ†å‘
     if (btn != BTN_NONE) {
         if (ps->global_btn_handler) ps->global_btn_handler(btn);
         
         if (ps->is_portal_running && !ps->is_exiting) {
             if (ps->active_portal && ps->active_portal->input)
                 ps->active_portal->input(btn, ps->portal_ctx);
-            btn = BTN_NONE; // À¹½Ø
+            btn = BTN_NONE; // æ‹¦æˆª
         } else {
             page_t *p = page_stack_current(ps);
             if (p && p->comp && p->comp->input) p->comp->input(btn, p->ctx);
         }
     }
 
-    // 2. ´¿ÕûÊı¶¯»­²½½ø (Portal)
+    // 2. çº¯æ•´æ•°åŠ¨ç”»æ­¥è¿› (Portal)
     if (ps->is_portal_running) {
-        // ·ÀÖ¹³ıÒÔ 0 µ¼ÖÂÓ²¼şÒì³£
+        // é˜²æ­¢é™¤ä»¥ 0 å¯¼è‡´ç¡¬ä»¶å¼‚å¸¸
         uint16_t duration = g_screen_cfg.animation_duration ? g_screen_cfg.animation_duration : 1;
         
-        // ·Å´ó 256 ±¶Ëã Step£¬¼«ËÙÕûĞÍ¼ÆËã
+        // æ”¾å¤§ 256 å€ç®— Stepï¼Œæé€Ÿæ•´å‹è®¡ç®—
         int32_t step = 256 / duration;
-        if (step < 1) step = 1; // ±£Ö¤ÖÁÉÙ²½½ø 1
+        if (step < 1) step = 1; // ä¿è¯è‡³å°‘æ­¥è¿› 1
 
         if (ps->is_exiting) {
             ps->ani_progress -= step;
@@ -112,7 +113,7 @@ void page_update(page_stack_t *ps, btn_type_t btn) {
 
     u8g2_ClearBuffer(ps->u8g2);
 
-    // 3. µ×²ãÒ³Ãæ»æÖÆ
+    // 3. åº•å±‚é¡µé¢ç»˜åˆ¶
     page_t *p_curr = page_stack_current(ps);
     if (p_curr && p_curr->comp && p_curr->comp->draw) {
         u8g2_SetMaxClipWindow(ps->u8g2);
@@ -120,19 +121,19 @@ void page_update(page_stack_t *ps, btn_type_t btn) {
         p_curr->comp->draw(ps->u8g2, p_curr->ctx);
     }
 
-    // 4. Portal ¶¥²ã»æÖÆ (´¿ÕûÊıËã×ø±ê)
+    // 4. Portal é¡¶å±‚ç»˜åˆ¶ (çº¯æ•´æ•°ç®—åæ ‡)
     if (ps->is_portal_running && ps->active_portal) {
         u8g2_SetMaxClipWindow(ps->u8g2);
         
-        // »ñÈ¡»º¶¯Öµ (·¶Î§ 0 ~ 256)
+        // è·å–ç¼“åŠ¨å€¼ (èŒƒå›´ 0 ~ 256)
         int32_t eased = ps->is_exiting ? 
                         QuadraticEaseIn_Int(ps->ani_progress) : 
                         QuadraticEaseOut_Int(ps->ani_progress);
 
-        // Ä¿±êÒÆ¶¯¾àÀë
+        // ç›®æ ‡ç§»åŠ¨è·ç¦»
         int32_t target_dist = (g_screen_cfg.height - ps->active_portal->h) / 2 + ps->active_portal->h;
         
-        // ´¿ÕûÊıËã current_y£¬ÀûÓÃ >> 8 È¡´ú¸¡µã³ı·¨
+        // çº¯æ•´æ•°ç®— current_yï¼Œåˆ©ç”¨ >> 8 å–ä»£æµ®ç‚¹é™¤æ³•
         int current_y = -ps->active_portal->h + (int)((target_dist * eased) >> 8);
 
         ps->active_portal->draw(ps->u8g2, 
@@ -143,5 +144,10 @@ void page_update(page_stack_t *ps, btn_type_t btn) {
                                 ps->portal_ctx);
     }
 
-    u8g2_SendBuffer(ps->u8g2);
+    /* è„å¸§åˆ¤å®šï¼šç”»é¢ä¸ä¸Šæ¬¡é€æ˜¾å®Œå…¨ä¸€è‡´æ—¶è·³è¿‡å…¨å± SPI åˆ·æ–°ã€‚
+     * ä¸€æ¬¡å…¨å±åˆ·æ–°ä¼šé˜»å¡ä¸»å¾ªç¯çº¦ 3~5msï¼ˆ240x240ï¼ŒSPI 115KBï¼‰ï¼Œ
+     * é™æ€èœå•åœºæ™¯ä¸‹ç»å¤§å¤šæ•°å¸§å®Œå…¨ä¸å˜ï¼Œè·³è¿‡å¯æ˜¾è‘—é™ä½ BLE è¢«é¥¿æ­»çš„æ¦‚ç‡ã€‚ */
+    if (u8g2_BufferChanged(ps->u8g2)) {
+        u8g2_SendBuffer(ps->u8g2);
+    }
 }

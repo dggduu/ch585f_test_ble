@@ -10,15 +10,17 @@
 #include "middleware_pikaScript.h"
 // Compenonts
 #include "page_stack.h"
+// Task
+#include "task/Inc/task_ui.h"
 // APP
 #include "app_splash_screen.h"
 #include "broadcaster.h"
 
 
-/* PCA9539 ��չ IO �� I2C ��ַ��7 λ��ַ�� */
+/* PCA9539 扩展 IO 的 I2C 地址（7 位地址） */
 uint8_t g_ioext_addr = 0x74;
 
-/* ����ʱ�����뼶�� */
+/* 简单延时（毫秒级） */
 static void delay_ms(uint32_t ms) {
     while(ms--) mDelaymS(1);
 }
@@ -36,7 +38,7 @@ const uint8_t MacAddr[6] =
 /*********************************************************************
  * @fn      Main_Circulation
  *
- * @brief   ��ѭ��
+ * @brief   主循环
  *
  * @return  none
  */
@@ -44,13 +46,12 @@ __HIGH_CODE
 __attribute__((noinline))
 void Main_Circulation()
 {
-    while(1)
-    {
-        TMOS_SystemProcess();
-    }
+    /* 单次调度：循环由 main() 的 while(1) 驱动，
+     * 这样主循环里还能穿插执行 uart_btn_process() 等非阻塞轮询 */
+    TMOS_SystemProcess();
 }
 
-// ===================== ���ڰ������� =====================
+// ===================== 串口按键处理 =====================
 static void uart_btn_process(void) {
   char ch = BSP_UART_RecvByteNonBlock();
   if (ch != 0) {
@@ -84,17 +85,22 @@ static void uart_btn_process(void) {
 }
 
 int main() {
-  bsp_borad_init();
-    // CH58x_BLEInit();
-    
-    // GAPRole_BroadcasterInit();
-    // Broadcaster_Init();
-  app_splash_screen_entry();
+  bsp_borad_init();      // 时钟 / UART / SPI / LCD（不涉及 TMOS，可最先执行）
+
+  /* 重要：初始化顺序必须与官方 CH585EVT 一致 —— CH58x_BLEInit() 先于 HAL_Init()。
+   * CH58x_BLEInit() → BLE_LibInit() → TMOS_Init() 会清空整个 TMOS 状态
+   * （任务表 / 定时器链表 / 时钟回调 fnGetClockCBs 全部清零）。
+   * 若先执行 HAL_Init()，其中注册的 TMOS 时钟（HAL_TimeInit→TMOS_TimerInit）
+   * 会被 TMOS_Init 清掉，导致 tmos_start_task() 静默失败、
+   * TMOS_SystemProcess() 永不推进定时器，UI_ProcessEvent 永远不被调用。 */
+  CH58x_BLEInit();
+  HAL_Init();
+
+  GAPRole_BroadcasterInit();
+  Broadcaster_Init();
+  UI_Task_Init();
   while (1) {
-    BSP_Timer_Tick(); 
-    uart_btn_process();
-    btn_type_t btn = btn_fifo_pop();
-    page_update(&g_page_stack, btn);
-    // Main_Circulation();
+    uart_btn_process();  // 非阻塞串口按键扫描
+    Main_Circulation();  // TMOS 系统调度
   }
 }

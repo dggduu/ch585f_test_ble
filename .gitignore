@@ -4,3 +4,4 @@ components/littlefs
 .claude/
 .code/
 */*/__pycache__/
+.vscode/

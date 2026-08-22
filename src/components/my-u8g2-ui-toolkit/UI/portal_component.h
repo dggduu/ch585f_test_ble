@@ -1,30 +1,30 @@
 #ifndef __PORTAL_COMPONENT_H__
 #define __PORTAL_COMPONENT_H__
 
-// ==========  Í·²¿ÎÄ¼ş ==========
+// ==========  å¤´éƒ¨æ–‡ä»¶ ==========
 #include "page_stack.h"
 #include "screen.h"
 #include "stdbool.h"
 #include "u8g2.h"
 #include "ui_toolkit.h"
 
-// ÆôÓÃVLIST_PROGERSSÏà¹Ø×é¼ş
+// å¯ç”¨VLIST_PROGERSSç›¸å…³ç»„ä»¶
 #define ENABLE_VLIST_PROGRESS 1
 
-// ========== ÎªÁËPortal×é¼şµÄÍ¨ÓÃĞÔ£¬´´½¨×é¼şÊ±ĞèÒª¶¨Òå¸Ã×é¼şµÄÉÏÏÂÎÄ½á¹¹
+// ========== ä¸ºäº†Portalç»„ä»¶çš„é€šç”¨æ€§ï¼Œåˆ›å»ºç»„ä»¶æ—¶éœ€è¦å®šä¹‰è¯¥ç»„ä»¶çš„ä¸Šä¸‹æ–‡ç»“æ„
 // ==========
 // ==========
-// ÒòÎª¶¨ÒåÁËportal_ctx_bufferÓÃÓÚ´æ·ÅÉÏÏÂÎÄ£¬Òò´Ë¿ÉÒÔÊ¹ÓÃÄäÃû½á¹¹ÌåµÄ·½Ê½¶¨Òå
-// ========== ÏûÏ¢¿òËùĞèÊı¾İ
+// å› ä¸ºå®šä¹‰äº†portal_ctx_bufferç”¨äºå­˜æ”¾ä¸Šä¸‹æ–‡ï¼Œå› æ­¤å¯ä»¥ä½¿ç”¨åŒ¿åç»“æ„ä½“çš„æ–¹å¼å®šä¹‰
+// ========== æ¶ˆæ¯æ¡†æ‰€éœ€æ•°æ®
 typedef struct {
   const char *title;
   const char *msg;
 } portal_ctx_message_box_t;
 
-// Êı×ÖÑ¡ÔñÆ÷ËùĞèÊı¾İ
+// æ•°å­—é€‰æ‹©å™¨æ‰€éœ€æ•°æ®
 typedef struct {
   const char *title;
-  float *val_ptr; // ¶ÔÓÚĞèÒª±ä»¯µÄÖµ£¬´«ÈëËüµÄÖ¸Õë
+  float *val_ptr; // å¯¹äºéœ€è¦å˜åŒ–çš„å€¼ï¼Œä¼ å…¥å®ƒçš„æŒ‡é’ˆ
   float min;
   float max;
   float step;
@@ -35,9 +35,9 @@ typedef struct {
   float *val_ptr;
   float min;
   float max;
-  uint8_t total_digit; // ×ÜÏÔÊ¾Î»Êı
-  uint8_t dot_pos;     // Ğ¡Êıµãºó±£ÁôÎ»Êı
-  uint8_t cursor_pos;  // ¹â±êÎ»ÖÃ
+  uint8_t total_digit; // æ€»æ˜¾ç¤ºä½æ•°
+  uint8_t dot_pos;     // å°æ•°ç‚¹åä¿ç•™ä½æ•°
+  uint8_t cursor_pos;  // å…‰æ ‡ä½ç½®
 } portal_ctx_precise_t;
 
 #if ENABLE_VLIST_PROGRESS
@@ -52,9 +52,13 @@ typedef enum {
 
 typedef struct {
   const char *title;
+  /* åˆ†æ­¥ä»»åŠ¡å›è°ƒï¼šis_running æœŸé—´æ¯å¸§ï¼ˆæ¯æ¬¡ page_updateï¼‰è¢«è°ƒç”¨ä¸€æ¬¡ï¼Œ
+   * æ¯æ¬¡å¿…é¡»å¿«é€Ÿè¿”å›ã€ä¸å¾—é˜»å¡ï¼ˆç¦æ­¢ Delay_ms ä¹‹ç±»çš„é•¿å»¶æ—¶ï¼‰ï¼Œ
+   * ç”±ä»»åŠ¡è‡ªå·±æ¨è¿› task_stepï¼Œå¹¶åœ¨ç»“æŸæ—¶è°ƒç”¨ Progress_SetSuccess/Failedã€‚ */
   void (*task_callback)(void *ctx);
   progress_status_t status;
   bool is_running;
+  uint32_t task_step; /* ä»»åŠ¡æ­¥è¿›è®¡æ•°ï¼ˆæ¡†æ¶åœ¨å¯åŠ¨æ—¶æ¸…é›¶ï¼‰ */
   char detail[32];
 } portal_ctx_progress_t;
 
@@ -66,7 +70,7 @@ extern const portal_component_t PORTAL_PROGRESS;
 
 #endif
 
-// ========== Íâ²¿¶¨Òå  ==========
+// ========== å¤–éƒ¨å®šä¹‰  ==========
 extern const portal_component_t PORTAL_MESSAGE_BOX;
 extern const portal_component_t PORTAL_NUM;
 extern const portal_component_t PORTAL_PRECISE_NUM;

@@ -48,7 +48,7 @@ uint8_t bsp_borad_init(){
     /* 5. 初始化 LCD 与显示框架（u8g2 风格彩色移植层） */
     PRINT("Initializing LCD... ");
     Lcd_Init();
-    LCD_Clear(LCD_BLACK);
+    LCD_Clear(LCD_BLUE);
     u8g2_porting_init(&u8g2);
     PRINT("OK\r\n");
 

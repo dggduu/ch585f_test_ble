@@ -16,10 +16,10 @@
 
 extern const uint8_t icon_list[][128];
 
-#define ICON_SETTINGS 0x0081 // ÉèÖÃÍ¼±ê
-#define ICON_ABOUT 0x0114    // ¹ØÓÚÍ¼±ê
-#define ICON_LOCK 0x0057     // ²æ²æÍ¼±ê
-#define ICON_UNLOCK 0x0078   // ¶Ô¹´Í¼±ê
+#define ICON_SETTINGS 0x0081 // è®¾ç½®å›¾æ ‡
+#define ICON_ABOUT 0x0114    // å…³äºå›¾æ ‡
+#define ICON_LOCK 0x0057     // å‰å‰å›¾æ ‡
+#define ICON_UNLOCK 0x0078   // å¯¹å‹¾å›¾æ ‡
 
 const Screen_t g_screen_cfg = DEFAULT_SCREEN_CONFIG;
 extern u8g2_t u8g2;
@@ -39,18 +39,18 @@ static void Delay_ms(uint32_t ms) {
     while(ms--) mDelaymS(1);
 }
 
-// ===================== ×Ô¶¨ÒåSplashScreen =====================
+// ===================== è‡ªå®šä¹‰SplashScreen =====================
 static void my_splash_draw(u8g2_t *u8g2, const Screen_t *screen_cfg) {
   static uint32_t tick_count = 0;
   tick_count++;
 
-  // µçÁ¿»æÖÆ
+  // ç”µé‡ç»˜åˆ¶
   u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
   u8g2_DrawFrame(u8g2, screen_cfg->width - 20, 2, 18, 10);
   u8g2_DrawBox(u8g2, screen_cfg->width - 18, 4, 14, 6);
   u8g2_DrawStr(u8g2, screen_cfg->width - 40, 10, "80%");
 
-  // Êı×ÖÊ±ÖÓ
+  // æ•°å­—æ—¶é’Ÿ
   uint8_t hour = 12, min = 30, sec = (tick_count / 10) % 60;
   char time_str[10];
   sprintf(time_str, "%02d:%02d:%02d", hour, min, sec);
@@ -59,21 +59,21 @@ static void my_splash_draw(u8g2_t *u8g2, const Screen_t *screen_cfg) {
     ui_draw_str((screen_cfg->width - time_width) / 2,
                 screen_cfg->height / 2 + 10, time_str, U8G2_COLOR_YELLOW);
 
-  // ÌáÊ¾ÎÄ×Ö
+  // æç¤ºæ–‡å­—
   u8g2_SetFont(u8g2, u8g2_font_5x7_tf);
   const char *hint = "Press any btn to enter";
   ui_draw_str((screen_cfg->width - u8g2_GetStrWidth(u8g2, hint)) / 2,
                screen_cfg->height - 5, hint,UI_COLOR_MAGENTA);
 }
 
-// ===================== È«¾Ö°´¼ü»Øµ÷ =====================
+// ===================== å…¨å±€æŒ‰é”®å›è°ƒ =====================
 static void global_btn_handler(btn_type_t btn) {
   if (btn == BTN_LONG_PRESS) {
     splash_screen_jump();
   }
 }
 
-// ===================== ×Ô¶¨ÒåPage =====================
+// ===================== è‡ªå®šä¹‰Page =====================
 static void osc_app_draw(u8g2_t *u8g2, void *ctx) {
   static uint8_t wave_offset = 0;
   wave_offset = (wave_offset + 1) % 255;
@@ -88,45 +88,57 @@ static void osc_app_draw(u8g2_t *u8g2, void *ctx) {
   }
   u8g2_DrawStr(u8g2, 10, 62, "BACK:Exit  LONG:Home");
 }
-// ×Ô¶¨ÒåPage btn Ïû·Ñº¯Êı
+// è‡ªå®šä¹‰Page btn æ¶ˆè´¹å‡½æ•°
 static void osc_app_input(int btn, void *ctx) {
   if (btn == BTN_BACK) {
     page_stack_pop(&g_page_stack);
   }
 }
-// ×¢²á×Ô¶¨Òå×é¼ş
+// æ³¨å†Œè‡ªå®šä¹‰ç»„ä»¶
 const page_component_t OSC_APP_COMP = {.draw = osc_app_draw,
                                        .input = osc_app_input};
 
+/* åˆ†æ­¥æ¼”ç¤ºä»»åŠ¡ï¼šæ¯å¸§åªæ‰§è¡Œä¸€å°æ­¥ï¼ˆçº¦ 40ms ä¸€æ¬¡ï¼Œç”± portal_progress_draw é©±åŠ¨ï¼‰ã€‚
+ * ç¦æ­¢åœ¨è¿™é‡Œä½¿ç”¨ Delay_ms ç­‰é•¿é˜»å¡å»¶æ—¶â€”â€”å¦åˆ™ä¼šè¿ç»­é˜»å¡ TMOS_SystemProcess
+ * æ•°ç§’ï¼Œç›´æ¥é¥¿æ­» BLE åè®®æ ˆï¼ˆè¿æ¥äº‹ä»¶/å¹¿æ’­å¤„ç†å…¨éƒ¨æ— æ³•è¿›è¡Œï¼Œå¯èƒ½å¯¼è‡´å¤ä½ï¼‰ã€‚
+ * ä»»åŠ¡ç»“æŸåè°ƒç”¨ Progress_SetSuccess / Progress_SetFailed é€šçŸ¥æ¡†æ¶åœæ­¢ã€‚ */
 void my_long_task(void *ctx) {
-    Progress_Log(ctx, "Initializing...");
-    Delay_ms(500);
+    portal_ctx_progress_t *p = (portal_ctx_progress_t *)ctx;
+    if (p == NULL) return;
 
-    Progress_Log(ctx, "Erasing...");
-    Delay_ms(800);
-
-    for (int i = 0; i <= 100; i += 20) {
-        Progress_Log(ctx, "Writing: %d%%", i);
-        Delay_ms(200);
+    switch (p->task_step++) {
+    case 0:
+        Progress_Log(ctx, "Initializing...");
+        break;
+    case 1:
+        Progress_Log(ctx, "Erasing...");
+        break;
+    default: {
+        /* æ¯ä¸¤å¸§æ¨è¿› 20%ï¼Œæ¨¡æ‹Ÿå†™å…¥è¿›åº¦ */
+        int pct = ((p->task_step - 2) / 2) * 20;
+        if (pct <= 100) {
+            Progress_Log(ctx, "Writing: %d%%", pct);
+        } else {
+            // æ¼”ç¤ºç»“æŸï¼šæ ‡è®°å¤±è´¥
+            Progress_SetFailed(ctx, "no idea");
+        }
+        break;
     }
-
-    // ³É¹¦½áÊø
-    //Progress_SetSuccess(ctx);
-	Progress_SetFailed(ctx,"no idea");
+    }
 }
 									   
-// ===================== ²Ëµ¥³õÊ¼»¯ =====================
+// ===================== èœå•åˆå§‹åŒ– =====================
 static void ui_menu_init(void) {
-  // ³õÊ¼»¯ÁĞ±í
+  // åˆå§‹åŒ–åˆ—è¡¨
   vlist_init(&g_setting_main_menu, &g_page_stack.main_tick);
   vlist_init(&g_setting_sub_menu, &g_page_stack.main_tick);
   vlist_init(&g_about_menu, &g_page_stack.main_tick);
   hlist_init(&g_main_hlist, &g_page_stack.main_tick);
 
-  // ³õÊ¼»¯´ò×©¿éÓÎÏ·
+  // åˆå§‹åŒ–æ‰“ç –å—æ¸¸æˆ
   brick_break_init(&g_brick_break_ctx, &g_page_stack.main_tick, &g_screen_cfg);
 
-  // ÉèÖÃ²Ëµ¥
+  // è®¾ç½®èœå•
   vlist_add_toggle(&g_setting_sub_menu, "WIFI Link", &g_wifi_state);
   vlist_add_num(&g_setting_sub_menu, "Brightness", &g_screen_brightness, 0, 100,
                 5);
@@ -143,9 +155,9 @@ static void ui_menu_init(void) {
                               &g_setting_sub_menu, true, "warinng",
                               "Try Again!");
 
-  // Ìí¼ÓOSC×é¼şÈë¿Ú
+  // æ·»åŠ OSCç»„ä»¶å…¥å£
   vlist_add_action(&g_setting_main_menu, "Oscilloscope", &OSC_APP_COMP, NULL);
-  // Ìí¼Ó´ò×©¿éÓÎÏ·Èë¿Ú
+  // æ·»åŠ æ‰“ç –å—æ¸¸æˆå…¥å£
   vlist_add_action(&g_setting_main_menu, "Brick Break", &BRICK_BREAK_COMP,
                    &g_brick_break_ctx);
   vlist_add_protected_action(&g_setting_main_menu, "Brick Break (locked)",
@@ -155,17 +167,17 @@ static void ui_menu_init(void) {
                              &BRICK_BREAK_COMP, &g_brick_break_ctx, true,
                              "warinng", "This action is locked!");
 
-  // ¹ØÓÚ²Ëµ¥
+  // å…³äºèœå•
   vlist_add_plain_text(&g_about_menu, "Version: 0.0.1");
   vlist_add_plain_text(&g_about_menu, "Author: dggdoo");
   vlist_add_plain_text(&g_about_menu, "Build: 2026-01");
 
-  // Ö÷²Ëµ¥
+  // ä¸»èœå•
   hlist_add_glyph_item(&g_main_hlist, "SETTINGS", ICON_SETTINGS, &VLIST_COMP,
                        &g_setting_main_menu);
   hlist_add_xbm_item(&g_main_hlist, "OSCILLO", icon_list[3], &OSC_APP_COMP,
                      NULL);
-  // Ìí¼Ó´ò×©¿éÓÎÏ·µ½Ö÷²Ëµ¥
+  // æ·»åŠ æ‰“ç –å—æ¸¸æˆåˆ°ä¸»èœå•
   hlist_add_glyph_item(&g_main_hlist, "BRICK GAME", ICON_ABOUT,
                        &BRICK_BREAK_COMP, &g_brick_break_ctx);
   hlist_add_glyph_item(&g_main_hlist, "ABOUT", ICON_ABOUT, &VLIST_COMP,
@@ -177,13 +189,13 @@ static void ui_menu_init(void) {
                                  &VLIST_COMP, &g_about_menu, true,
                                  "Try Again!");
 
-  // ³õÊ¼»¯SplashScreen
+  // åˆå§‹åŒ–SplashScreen
   splash_screen_init(&g_main_hlist, my_splash_draw);
-  // ×¢²áÈ«¾Ö°´¼ü»Øµ÷
+  // æ³¨å†Œå…¨å±€æŒ‰é”®å›è°ƒ
   page_stack_register_global_btn_cb(&g_page_stack, global_btn_handler);
-  // ³õÊ¼Ò³Ãæ
+  // åˆå§‹é¡µé¢
   splash_screen_jump();
-  // Ö±½Ó½øÈëHlist£¬ĞèÒª½«ÉÏÃæµÄSplashScreenÏà¹ØµÄÉ¾³ı
+  // ç›´æ¥è¿›å…¥Hlistï¼Œéœ€è¦å°†ä¸Šé¢çš„SplashScreenç›¸å…³çš„åˆ é™¤
   // page_stack_push(&g_page_stack, &HLIST_COMP, &g_main_hlist);
 }
 
@@ -200,11 +212,11 @@ void app_splash_screen_entry() {
   splash_log_printf("        /Nya!  Powered");
   splash_log_printf("   /|/|        By");
   splash_log_printf("  (- - |       dggduu's");
-  splash_log_printf("   |¡¢~\\        U8g2 UI");
+  splash_log_printf("   |ã€~\\        U8g2 UI");
   splash_log_printf("  //_,)/       Toolkit");
   splash_log_printf("ready to test clear");
   splash_log_clear();
-  // ÉÏÃæÕâĞ©¿ÉÒÔÈ¥µô
+  // ä¸Šé¢è¿™äº›å¯ä»¥å»æ‰
   page_stack_init(&g_page_stack, &u8g2);
   ui_menu_init();
 }

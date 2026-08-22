@@ -3,9 +3,9 @@
 #include <stdarg.h>
 #include <string.h>
 
-/* ==================== ´¿ÕûÊý¸¨Öúº¯Êý£¨±ÜÃâ¸¡µã¿â£© ==================== */
+/* ==================== çº¯æ•´æ•°è¾…åŠ©å‡½æ•°ï¼ˆé¿å…æµ®ç‚¹åº“ï¼‰ ==================== */
 
-// ´¿ÕûÊý 10 µÄ N ´ÎÃÝ (10^n)
+// çº¯æ•´æ•° 10 çš„ N æ¬¡å¹‚ (10^n)
 static int32_t ipow10(uint8_t exp) {
     int32_t result = 1;
     while (exp--) {
@@ -14,7 +14,7 @@ static int32_t ipow10(uint8_t exp) {
     return result;
 }
 
-// ÇáÁ¿¼¶ float ×ª×Ö·û´®£¨±£Áô 1 Î»Ð¡Êý£¬Èç 12.3f -> "12.3"£©
+// è½»é‡çº§ float è½¬å­—ç¬¦ä¸²ï¼ˆä¿ç•™ 1 ä½å°æ•°ï¼Œå¦‚ 12.3f -> "12.3"ï¼‰
 static void fast_ftoa_1dec(float val, char *buf) {
     int32_t total = (int32_t)(val * 10.0f + (val >= 0 ? 0.5f : -0.5f));
     if (total < 0) {
@@ -26,7 +26,7 @@ static void fast_ftoa_1dec(float val, char *buf) {
     sprintf(buf, "%ld.%ld", (long)integer_part, (long)decimal_part);
 }
 
-// ¸ñÊ½»¯¹Ì¶¨Î»ÊýµÄÊýÖµ×Ö·û´® (È¡´ú¶¯Ì¬ sprintf ¸¡µã¸ñÊ½»¯)
+// æ ¼å¼åŒ–å›ºå®šä½æ•°çš„æ•°å€¼å­—ç¬¦ä¸² (å–ä»£åŠ¨æ€ sprintf æµ®ç‚¹æ ¼å¼åŒ–)
 static void format_precise_val(float val, uint8_t total_digit, uint8_t dot_pos, char *buf) {
     int32_t factor = ipow10(dot_pos);
     int32_t val_int = (int32_t)(val * factor + (val >= 0 ? 0.5f : -0.5f));
@@ -41,13 +41,13 @@ static void format_precise_val(float val, uint8_t total_digit, uint8_t dot_pos, 
     }
 }
 
-/* ==================== MessageBox Portal ×é¼þ ==================== */
+/* ==================== MessageBox Portal ç»„ä»¶ ==================== */
 static void portal_messagebox_draw(u8g2_t *u8g2, int16_t x, int16_t y,
                                    uint8_t w, uint8_t h, void *ctx) {
     if (!ctx) return;
     portal_ctx_message_box_t *data = (portal_ctx_message_box_t *)ctx;
 
-    // »æÖÆ±³¾°ºÍÍâ¿ò
+    // ç»˜åˆ¶èƒŒæ™¯å’Œå¤–æ¡†
     u8g2_SetDrawColor(u8g2, 0);
     u8g2_DrawBox(u8g2, x, y, w, h);
     u8g2_SetDrawColor(u8g2, 1);
@@ -55,7 +55,7 @@ static void portal_messagebox_draw(u8g2_t *u8g2, int16_t x, int16_t y,
 
     u8g2_SetFont(u8g2, g_screen_cfg.sub_window_font);
 
-    // ±êÌâ¾ÓÖÐ»æÖÆ
+    // æ ‡é¢˜å±…ä¸­ç»˜åˆ¶
     if (data->title) {
         int title_w = u8g2_GetStrWidth(u8g2, data->title);
         g_screen_cfg.draw_text(u8g2, x + (w - title_w) / 2, y + 12, data->title);
@@ -63,7 +63,7 @@ static void portal_messagebox_draw(u8g2_t *u8g2, int16_t x, int16_t y,
 
     u8g2_DrawHLine(u8g2, x + 5, y + 15, w - 10);
 
-    // ÄÚÈÝ»æÖÆ
+    // å†…å®¹ç»˜åˆ¶
     if (data->msg) {
         g_screen_cfg.draw_text(u8g2, x + 5, y + 27, data->msg);
     }
@@ -82,7 +82,7 @@ const portal_component_t PORTAL_MESSAGE_BOX = {
     .h = 35
 };
 
-/* ==================== NumSelector Portal ×é¼þ ==================== */
+/* ==================== NumSelector Portal ç»„ä»¶ ==================== */
 static void portal_num_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
                             uint8_t h, void *ctx) {
     if (!ctx) return;
@@ -94,23 +94,23 @@ static void portal_num_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
     const Screen_t *sc = &g_screen_cfg;
     uint32_t current_tick = g_page_stack.main_tick;
 
-    // ±³¾°ºÍ±ß¿ò
+    // èƒŒæ™¯å’Œè¾¹æ¡†
     u8g2_SetDrawColor(u8g2, 0);
     u8g2_DrawBox(u8g2, x, y, w, h);
     u8g2_SetDrawColor(u8g2, 1);
     u8g2_DrawFrame(u8g2, x, y, w, h);
 
-    // ±êÌâ£¨´ø¹ö¶¯£©
+    // æ ‡é¢˜ï¼ˆå¸¦æ»šåŠ¨ï¼‰
     u8g2_SetFont(u8g2, sc->font);
     draw_scroll_text_with_pause(u8g2, sc, data->title, x + 5, w - 10, y + 12,
                                 current_tick, y + 1, y + 14);
 
-    // µ±Ç°Öµ£¨ÎÞ¸¡µã sprintf£©
+    // å½“å‰å€¼ï¼ˆæ— æµ®ç‚¹ sprintfï¼‰
     fast_ftoa_1dec(val, buf);
     int val_w = u8g2_GetStrWidth(u8g2, buf);
     u8g2_DrawStr(u8g2, x + (w - val_w) / 2, y + 26, buf);
 
-    // ½ø¶ÈÌõ£¨×ª´¿ÕûÊý¼ÆËã£©
+    // è¿›åº¦æ¡ï¼ˆè½¬çº¯æ•´æ•°è®¡ç®—ï¼‰
     int bx = x + 10, by = y + 30, bw = w - 20, bh = 6;
     u8g2_DrawFrame(u8g2, bx, by, bw, bh);
     
@@ -128,7 +128,7 @@ static void portal_num_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
         }
     }
 
-    // ·¶Î§ÐÅÏ¢
+    // èŒƒå›´ä¿¡æ¯
     u8g2_SetFont(u8g2, sc->sub_window_font);
     char s_min[10], s_step[10], s_max[10];
     fast_ftoa_1dec(data->min, s_min);
@@ -163,35 +163,35 @@ const portal_component_t PORTAL_NUM = {
     .h = 48
 };
 
-/* ==================== ¾«È·ÊýÖµ Portal ×é¼þ ==================== */
+/* ==================== ç²¾ç¡®æ•°å€¼ Portal ç»„ä»¶ ==================== */
 void portal_precise_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
                          uint8_t h, void *ctx) {
     if (!ctx) return;
     portal_ctx_precise_t *data = (portal_ctx_precise_t *)ctx;
 
-    // ±³¾°ºÍ±ß¿ò
+    // èƒŒæ™¯å’Œè¾¹æ¡†
     u8g2_SetDrawColor(u8g2, 0);
     u8g2_DrawBox(u8g2, x, y, w, h);
     u8g2_SetDrawColor(u8g2, 1);
     u8g2_DrawFrame(u8g2, x, y, w, h);
 
-    // ±êÌâ
+    // æ ‡é¢˜
     u8g2_SetFont(u8g2, g_screen_cfg.font);
     u8g2_DrawStr(u8g2, x + 4, y + 10, data->title);
     u8g2_DrawHLine(u8g2, x, y + 12, w);
 
-    // ¸ñÊ½»¯ÊýÖµ
+    // æ ¼å¼åŒ–æ•°å€¼
     char buf[16];
     format_precise_val(*data->val_ptr, data->total_digit, data->dot_pos, buf);
 
-    // »æÖÆÊýÖµ
+    // ç»˜åˆ¶æ•°å€¼
     u8g2_SetFont(u8g2, g_screen_cfg.sub_window_font);
     int str_w = u8g2_GetStrWidth(u8g2, buf);
     int num_x = x + (w - str_w) / 2;
     int num_y = y + (h / 2) + 6;
     u8g2_DrawStr(u8g2, num_x, num_y, buf);
 
-    // ¹â±êÖ¸Ê¾Ïß (·ÀÖ¹ char_w ³ýÁã)
+    // å…‰æ ‡æŒ‡ç¤ºçº¿ (é˜²æ­¢ char_w é™¤é›¶)
     size_t len = strlen(buf);
     if (len > 0) {
         int char_w = str_w / (int)len;
@@ -203,7 +203,7 @@ void portal_precise_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
         u8g2_DrawHLine(u8g2, cursor_line_x, num_y + 2, char_w);
     }
 
-    // ·¶Î§ÏÔÊ¾
+    // èŒƒå›´æ˜¾ç¤º
     char range_buf[32];
     sprintf(range_buf, "[%ld~%ld]", (long)data->min, (long)data->max);
     u8g2_DrawStr(u8g2, x + (w - u8g2_GetStrWidth(u8g2, range_buf)) / 2,
@@ -252,7 +252,7 @@ const portal_component_t PORTAL_PRECISE_NUM = {
     .h = 45
 };
 
-/* ==================== Progress Portal ×é¼þ ==================== */
+/* ==================== Progress Portal ç»„ä»¶ ==================== */
 #if ENABLE_VLIST_PROGRESS
 
 void portal_progress_force_refresh(void *ctx) {
@@ -276,21 +276,20 @@ void Progress_Log(void *ctx, const char *fmt, ...) {
     va_end(args);
 
     p->status = PROG_STATUS_WAIT;
-    portal_progress_force_refresh(ctx);
+    /* ä¸å†ç«‹å³ force_refreshï¼šåˆ†æ­¥æ¨¡å¼ä¸‹æœ¬å‡½æ•°ç”± portal_progress_draw é©±åŠ¨ï¼Œ
+     * åŒä¸€å¸§éšåŽä¼šç”± page_update çš„è„å¸§æ£€æµ‹ç»Ÿä¸€é€æ˜¾ï¼Œé¿å…é‡å¤çš„å…¨å± SPI åˆ·æ–° */
 }
 
 void Progress_SetSuccess(void *ctx) {
     portal_ctx_progress_t *p = (portal_ctx_progress_t *)ctx;
     p->status = PROG_STATUS_SUCCESS;
     snprintf(p->detail, sizeof(p->detail), "DONE");
-    portal_progress_force_refresh(ctx);
 }
 
 void Progress_SetFailed(void *ctx, const char *reason) {
     portal_ctx_progress_t *p = (portal_ctx_progress_t *)ctx;
     p->status = PROG_STATUS_FAIL;
     snprintf(p->detail, sizeof(p->detail), "%s", reason ? reason : "ERROR");
-    portal_progress_force_refresh(ctx);
 }
 
 static void portal_progress_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
@@ -298,18 +297,28 @@ static void portal_progress_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
     portal_ctx_progress_t *p = (portal_ctx_progress_t *)ctx;
     if (!p) return;
 
-    // ±³¾°ºÍ±ß¿ò
+    /* åˆ†æ­¥é©±åŠ¨ï¼šä»»åŠ¡è¿è¡ŒæœŸé—´ï¼Œæ¯å¸§è°ƒç”¨ä¸€æ¬¡å›žè°ƒæ‰§è¡Œä¸€å°æ­¥ï¼ˆå›žè°ƒå¿…é¡»å¿«é€Ÿè¿”å›žï¼‰ã€‚
+     * è¿™æ ·é•¿ä»»åŠ¡è¢«åˆ‡åˆ†åˆ°å„ä¸ª UI å¸§ä¹‹é—´ï¼ŒTMOS_SystemProcess ä¸ä¼šè¢«è¿žç»­é˜»å¡žæ•°ç§’ï¼Œ
+     * BLE åè®®æ ˆå¾—ä»¥æ­£å¸¸è°ƒåº¦ã€‚ä»»åŠ¡ç»“æŸæ—¶è‡ªè¡Œè°ƒç”¨ Progress_SetSuccess/Failedã€‚ */
+    if (p->is_running && p->task_callback) {
+        p->task_callback(p);
+        if (p->status == PROG_STATUS_SUCCESS || p->status == PROG_STATUS_FAIL) {
+            p->is_running = false;
+        }
+    }
+
+    // èƒŒæ™¯å’Œè¾¹æ¡†
     u8g2_SetDrawColor(u8g2, 0);
     u8g2_DrawBox(u8g2, x, y, w, h);
     u8g2_SetDrawColor(u8g2, 1);
     u8g2_DrawFrame(u8g2, x, y, w, h);
 
-    // ±êÌâ
+    // æ ‡é¢˜
     u8g2_SetFont(u8g2, g_screen_cfg.font);
     u8g2_DrawStr(u8g2, x + 5, y + 12, p->title);
     u8g2_DrawHLine(u8g2, x, y + 15, w);
 
-    // ×´Ì¬Ïà¹ØÏÔÊ¾
+    // çŠ¶æ€ç›¸å…³æ˜¾ç¤º
     if (p->status == PROG_STATUS_WAIT && !p->is_running) {
         u8g2_SetFont(u8g2, g_screen_cfg.sub_window_font);
         const char *tip = "Press[ENTER]to Start";
@@ -340,14 +349,11 @@ static void portal_progress_input(int btn, void *ctx) {
     }
 
     if (btn == BTN_ENTER && p->status == PROG_STATUS_WAIT) {
+        /* åªå¯åŠ¨åˆ†æ­¥ä»»åŠ¡ï¼Œä¸åœ¨æŒ‰é”®å›žè°ƒé‡ŒåŒæ­¥æ‰§è¡Œï¼ˆå¦åˆ™ä¼šé˜»å¡ž TMOS æ•´æ®µä»»åŠ¡ï¼‰ï¼›
+         * çœŸæ­£çš„æ‰§è¡Œç”± portal_progress_draw æ¯å¸§é©±åŠ¨ä¸€å°æ­¥ã€‚ */
         p->is_running = true;
+        p->task_step = 0;
         Progress_Log(p, "Starting...");
-
-        if (p->task_callback) {
-            p->task_callback(p);
-        }
-
-        p->is_running = false;
     }
 }
 

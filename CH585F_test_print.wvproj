@@ -193,7 +193,8 @@
 							"${project}/src/ble_profile/include",
 							"${project}/src/components/littlefs",
 							"${project}/src/middleware/Inc",
-							"${project}/src/app/Inc"
+							"${project}/src/app/Inc",
+							"${project}/src/task/Inc"
 						],
 						"include_system_paths": [],
 						"include_files": []

@@ -18,6 +18,7 @@
 #include "u8g2_porting.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -111,6 +112,13 @@ void u8g2_SetPowerSave(u8g2_t *u8g2, uint8_t is_enable);
 
 void u8g2_ClearBuffer(u8g2_t *u8g2);
 void u8g2_SendBuffer(u8g2_t *u8g2);
+
+/* 脏帧检测：与上一次实际送显的帧缓冲比较。
+ * 相同 → 返回 false（可跳过 SendBuffer，避免无意义的 SPI 全屏刷新，
+ *         减少主循环阻塞时间，给 BLE 留出调度时间）；
+ * 不同 → 内部同步影子缓冲并返回 true（调用方随后 SendBuffer）。
+ * 首次调用恒为 true。 */
+bool u8g2_BufferChanged(u8g2_t *u8g2);
 
 /* ==================== 颜色/字体设置（u8g2 兼容） ==================== */
 /* color: 调色板索引（0 ~ U8G2_NUM_COLORS-1），0 为背景色 */
