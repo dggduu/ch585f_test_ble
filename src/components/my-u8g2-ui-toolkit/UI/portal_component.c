@@ -1,14 +1,50 @@
 #include "portal_component.h"
-#include <math.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 
+/* ==================== 纯整数辅助函数（避免浮点库） ==================== */
+
+// 纯整数 10 的 N 次幂 (10^n)
+static int32_t ipow10(uint8_t exp) {
+    int32_t result = 1;
+    while (exp--) {
+        result *= 10;
+    }
+    return result;
+}
+
+// 轻量级 float 转字符串（保留 1 位小数，如 12.3f -> "12.3"）
+static void fast_ftoa_1dec(float val, char *buf) {
+    int32_t total = (int32_t)(val * 10.0f + (val >= 0 ? 0.5f : -0.5f));
+    if (total < 0) {
+        *buf++ = '-';
+        total = -total;
+    }
+    int32_t integer_part = total / 10;
+    int32_t decimal_part = total % 10;
+    sprintf(buf, "%ld.%ld", (long)integer_part, (long)decimal_part);
+}
+
+// 格式化固定位数的数值字符串 (取代动态 sprintf 浮点格式化)
+static void format_precise_val(float val, uint8_t total_digit, uint8_t dot_pos, char *buf) {
+    int32_t factor = ipow10(dot_pos);
+    int32_t val_int = (int32_t)(val * factor + (val >= 0 ? 0.5f : -0.5f));
+    
+    if (dot_pos == 0) {
+        sprintf(buf, "%0*ld", total_digit, (long)val_int);
+    } else {
+        int32_t integer_part = val_int / factor;
+        int32_t decimal_part = val_int % factor;
+        if (decimal_part < 0) decimal_part = -decimal_part;
+        sprintf(buf, "%0*ld.%0*ld", total_digit - dot_pos, (long)integer_part, dot_pos, (long)decimal_part);
+    }
+}
+
 /* ==================== MessageBox Portal 组件 ==================== */
 static void portal_messagebox_draw(u8g2_t *u8g2, int16_t x, int16_t y,
                                    uint8_t w, uint8_t h, void *ctx) {
-    if (!ctx)
-        return;
+    if (!ctx) return;
     portal_ctx_message_box_t *data = (portal_ctx_message_box_t *)ctx;
 
     // 绘制背景和外框
@@ -22,7 +58,6 @@ static void portal_messagebox_draw(u8g2_t *u8g2, int16_t x, int16_t y,
     // 标题居中绘制
     if (data->title) {
         int title_w = u8g2_GetStrWidth(u8g2, data->title);
-        u8g2_SetDrawColor(u8g2, 1);
         g_screen_cfg.draw_text(u8g2, x + (w - title_w) / 2, y + 12, data->title);
     }
 
@@ -30,7 +65,6 @@ static void portal_messagebox_draw(u8g2_t *u8g2, int16_t x, int16_t y,
 
     // 内容绘制
     if (data->msg) {
-        u8g2_SetDrawColor(u8g2, 1);
         g_screen_cfg.draw_text(u8g2, x + 5, y + 27, data->msg);
     }
 }
@@ -51,11 +85,9 @@ const portal_component_t PORTAL_MESSAGE_BOX = {
 /* ==================== NumSelector Portal 组件 ==================== */
 static void portal_num_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
                             uint8_t h, void *ctx) {
-    if (!ctx)
-        return;
+    if (!ctx) return;
     portal_ctx_num_t *data = (portal_ctx_num_t *)ctx;
-    if (!data->val_ptr)
-        return;
+    if (!data->val_ptr) return;
 
     float val = *(data->val_ptr);
     char buf[32];
@@ -70,46 +102,55 @@ static void portal_num_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
 
     // 标题（带滚动）
     u8g2_SetFont(u8g2, sc->font);
-    u8g2_SetDrawColor(u8g2, 1);
     draw_scroll_text_with_pause(u8g2, sc, data->title, x + 5, w - 10, y + 12,
                                 current_tick, y + 1, y + 14);
 
-    // 当前值
-    u8g2_SetFont(u8g2, sc->font);
-    sprintf(buf, "%.1f", val);
+    // 当前值（无浮点 sprintf）
+    fast_ftoa_1dec(val, buf);
     int val_w = u8g2_GetStrWidth(u8g2, buf);
     u8g2_DrawStr(u8g2, x + (w - val_w) / 2, y + 26, buf);
 
-    // 进度条
+    // 进度条（转纯整数计算）
     int bx = x + 10, by = y + 30, bw = w - 20, bh = 6;
     u8g2_DrawFrame(u8g2, bx, by, bw, bh);
-    float ratio = 0.0f;
+    
     if (data->max > data->min) {
-        ratio = (val - data->min) / (data->max - data->min);
-        ratio = fmaxf(0.0f, fminf(1.0f, ratio));
-    }
-    if (ratio > 0) {
-        u8g2_DrawBox(u8g2, bx + 2, by + 2, (int)((bw - 4) * ratio), bh - 4);
+        int32_t val_i = (int32_t)(val * 10.0f);
+        int32_t min_i = (int32_t)(data->min * 10.0f);
+        int32_t max_i = (int32_t)(data->max * 10.0f);
+        
+        if (val_i > max_i) val_i = max_i;
+        if (val_i < min_i) val_i = min_i;
+
+        int fill_w = ((val_i - min_i) * (bw - 4)) / (max_i - min_i);
+        if (fill_w > 0) {
+            u8g2_DrawBox(u8g2, bx + 2, by + 2, fill_w, bh - 4);
+        }
     }
 
     // 范围信息
     u8g2_SetFont(u8g2, sc->sub_window_font);
-    sprintf(buf, "[%.1f,%.1f,%.1f]", data->min, data->step, data->max);
+    char s_min[10], s_step[10], s_max[10];
+    fast_ftoa_1dec(data->min, s_min);
+    fast_ftoa_1dec(data->step, s_step);
+    fast_ftoa_1dec(data->max, s_max);
+    sprintf(buf, "[%s,%s,%s]", s_min, s_step, s_max);
+
     int range_w = u8g2_GetStrWidth(u8g2, buf);
     u8g2_DrawStr(u8g2, x + (w - range_w) / 2, y + 45, buf);
 }
 
 static void portal_num_input(int btn, void *ctx) {
-    if (!ctx)
-        return;
+    if (!ctx) return;
     portal_ctx_num_t *data = (portal_ctx_num_t *)ctx;
-    if (!data->val_ptr)
-        return;
+    if (!data->val_ptr) return;
 
     if (btn == BTN_UP) {
-        *(data->val_ptr) = fminf(*(data->val_ptr) + data->step, data->max);
+        float next_val = *(data->val_ptr) + data->step;
+        *(data->val_ptr) = (next_val > data->max) ? data->max : next_val;
     } else if (btn == BTN_DOWN) {
-        *(data->val_ptr) = fmaxf(*(data->val_ptr) - data->step, data->min);
+        float next_val = *(data->val_ptr) - data->step;
+        *(data->val_ptr) = (next_val < data->min) ? data->min : next_val;
     } else if (btn == BTN_ENTER || btn == BTN_BACK) {
         page_stack_portal_toggle(&g_page_stack, NULL, NULL, 0);
     }
@@ -125,8 +166,7 @@ const portal_component_t PORTAL_NUM = {
 /* ==================== 精确数值 Portal 组件 ==================== */
 void portal_precise_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
                          uint8_t h, void *ctx) {
-    if (!ctx)
-        return;
+    if (!ctx) return;
     portal_ctx_precise_t *data = (portal_ctx_precise_t *)ctx;
 
     // 背景和边框
@@ -142,12 +182,7 @@ void portal_precise_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
 
     // 格式化数值
     char buf[16];
-    char fmt[10];
-    if (data->dot_pos > 0)
-        sprintf(fmt, "%%0%d.%df", data->total_digit + 1, data->dot_pos);
-    else
-        sprintf(fmt, "%%0%d.0f", data->total_digit);
-    sprintf(buf, fmt, *data->val_ptr);
+    format_precise_val(*data->val_ptr, data->total_digit, data->dot_pos, buf);
 
     // 绘制数值
     u8g2_SetFont(u8g2, g_screen_cfg.sub_window_font);
@@ -156,34 +191,32 @@ void portal_precise_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
     int num_y = y + (h / 2) + 6;
     u8g2_DrawStr(u8g2, num_x, num_y, buf);
 
-    // 光标指示线（避免除零）
+    // 光标指示线 (防止 char_w 除零)
     size_t len = strlen(buf);
-    int char_w = (len > 0) ? (str_w / (int)len) : 0;
-    int offset = data->cursor_pos;
-    if (data->dot_pos > 0 && data->cursor_pos >= data->dot_pos)
-        offset += 1;
-    int cursor_line_x = num_x + str_w - (offset + 1) * char_w;
-    u8g2_DrawHLine(u8g2, cursor_line_x, num_y + 2, char_w);
+    if (len > 0) {
+        int char_w = str_w / (int)len;
+        int offset = data->cursor_pos;
+        if (data->dot_pos > 0 && data->cursor_pos >= data->dot_pos) {
+            offset += 1;
+        }
+        int cursor_line_x = num_x + str_w - (offset + 1) * char_w;
+        u8g2_DrawHLine(u8g2, cursor_line_x, num_y + 2, char_w);
+    }
 
     // 范围显示
     char range_buf[32];
-    sprintf(range_buf, "[%.0f~%.0f]", data->min, data->max);
-    u8g2_SetFont(u8g2, g_screen_cfg.sub_window_font);
+    sprintf(range_buf, "[%ld~%ld]", (long)data->min, (long)data->max);
     u8g2_DrawStr(u8g2, x + (w - u8g2_GetStrWidth(u8g2, range_buf)) / 2,
                  y + h - 2, range_buf);
 }
 
 static void portal_precise_input(int btn, void *ctx) {
-    if (!ctx)
-        return;
+    if (!ctx) return;
     portal_ctx_precise_t *data = (portal_ctx_precise_t *)ctx;
 
-    float factor = powf(10.0f, data->dot_pos);
-    int32_t val_int = (int32_t)roundf((*data->val_ptr) * factor);
-
-    int32_t step = 1;
-    for (uint8_t i = 0; i < data->cursor_pos; i++)
-        step *= 10;
+    int32_t factor = ipow10(data->dot_pos);
+    int32_t val_int = (int32_t)((*data->val_ptr) * factor + ((*data->val_ptr) >= 0 ? 0.5f : -0.5f));
+    int32_t step = ipow10(data->cursor_pos);
 
     switch (btn) {
     case BTN_LEFT:
@@ -207,10 +240,8 @@ static void portal_precise_input(int btn, void *ctx) {
     }
 
     float new_val = (float)val_int / factor;
-    if (new_val > data->max)
-        new_val = data->max;
-    if (new_val < data->min)
-        new_val = data->min;
+    if (new_val > data->max) new_val = data->max;
+    if (new_val < data->min) new_val = data->min;
     *data->val_ptr = new_val;
 }
 
@@ -244,7 +275,7 @@ void Progress_Log(void *ctx, const char *fmt, ...) {
     vsnprintf(p->detail, sizeof(p->detail), fmt, args);
     va_end(args);
 
-    p->status = PROG_STATUS_WAIT;   // 保持原状态
+    p->status = PROG_STATUS_WAIT;
     portal_progress_force_refresh(ctx);
 }
 
@@ -258,15 +289,14 @@ void Progress_SetSuccess(void *ctx) {
 void Progress_SetFailed(void *ctx, const char *reason) {
     portal_ctx_progress_t *p = (portal_ctx_progress_t *)ctx;
     p->status = PROG_STATUS_FAIL;
-    snprintf(p->detail, sizeof(p->detail), "%s", reason);
+    snprintf(p->detail, sizeof(p->detail), "%s", reason ? reason : "ERROR");
     portal_progress_force_refresh(ctx);
 }
 
 static void portal_progress_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
                                  uint8_t h, void *ctx) {
     portal_ctx_progress_t *p = (portal_ctx_progress_t *)ctx;
-    if (!p)
-        return;
+    if (!p) return;
 
     // 背景和边框
     u8g2_SetDrawColor(u8g2, 0);
@@ -300,10 +330,8 @@ static void portal_progress_draw(u8g2_t *u8g2, int16_t x, int16_t y, uint8_t w,
 
 static void portal_progress_input(int btn, void *ctx) {
     portal_ctx_progress_t *p = (portal_ctx_progress_t *)ctx;
-    if (!p)
-        return;
+    if (!p) return;
 
-    // 如果处于完成/失败状态，仅响应退出键
     if (p->status == PROG_STATUS_SUCCESS || p->status == PROG_STATUS_FAIL) {
         if (btn == BTN_ENTER || btn == BTN_BACK) {
             page_stack_portal_toggle(&g_page_stack, NULL, NULL, 0);
@@ -311,7 +339,6 @@ static void portal_progress_input(int btn, void *ctx) {
         return;
     }
 
-    // 等待状态按下 ENTER 启动任务
     if (btn == BTN_ENTER && p->status == PROG_STATUS_WAIT) {
         p->is_running = true;
         Progress_Log(p, "Starting...");

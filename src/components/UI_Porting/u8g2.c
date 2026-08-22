@@ -27,24 +27,29 @@ u8g2_t u8g2;
  * 低位 sh + BPP - 8 位），与 u8g2 1bpp 的字节读取方式一致。
  */
 
-static void u8g2_pix_write(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y,
-                           uint8_t color) {
-  uint32_t bit = ((uint32_t)y * u->width + x) * U8G2_PORTING_BPP;
-  uint32_t byte = bit >> 3;
-  uint8_t sh = (uint8_t)(bit & 7);
-  /* 颜色值先提升为 uint32 再左移，避免 uint8 截断丢失跨字节的高位 */
-  uint32_t group = (uint32_t)(color & (U8G2_NUM_COLORS - 1)) << sh;
+/* 3bpp 常量定义 */
+#define U8G2_3BPP_MASK     0x07 /* (1 << 3) - 1 */
 
-  u->pix_buf[byte] =
-      (uint8_t)((u->pix_buf[byte] &
-                 (uint8_t) ~((uint8_t)((U8G2_NUM_COLORS - 1) << sh))) |
-                (uint8_t)(group & 0xFF));
-  if (sh + U8G2_PORTING_BPP > 8) {
-    /* 跨字节：剩余高位进入第二字节的低位 */
-    u->pix_buf[byte + 1] =
-        (uint8_t)((u->pix_buf[byte + 1] &
-                   (uint8_t) ~((uint8_t)((U8G2_NUM_COLORS - 1) >> (8 - sh)))) |
-                  (uint8_t)(group >> 8));
+static inline void u8g2_pix_write(u8g2_t *u, u8g2_uint_t x, u8g2_uint_t y, uint8_t color) {
+  // 1. 计算 bit 偏移与 Byte 索引 (x * 3 可以用 (x << 1) + x 优化，编译器通常会自动做)
+  uint32_t bit = ((uint32_t)y * u->width + x) * 3;
+  uint32_t byte = bit >> 3;
+  uint8_t sh = bit & 7;
+
+  // 2. 预裁剪颜色值 (取低 3 位)
+  uint8_t c = color & U8G2_3BPP_MASK;
+
+  // 3. 构建 16 位掩码与值（避免重复移位与类型转换）
+  uint16_t mask = (uint16_t)(U8G2_3BPP_MASK << sh);
+  uint16_t val  = (uint16_t)(c << sh);
+
+  // 4. 写入首字节
+  u->pix_buf[byte] = (u->pix_buf[byte] & ~(uint8_t)mask) | (uint8_t)val;
+
+  // 5. 跨字节处理：当 sh 为 6 或 7 时（sh + 3 > 8），3bpp 才会跨入下一个字节
+  // 使用显式常数判断代替加法，更容易被编译器优化为极简条件分支
+  if (sh >= 6) {
+    u->pix_buf[byte + 1] = (u->pix_buf[byte + 1] & ~(uint8_t)(mask >> 8)) | (uint8_t)(val >> 8);
   }
 }
 
