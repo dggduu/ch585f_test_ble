@@ -176,27 +176,24 @@
 					},
 					"includes": {
 						"include_paths": [
-							"${project}/StdPeriphDriver/inc",
+							"${project}/src/hal/StdPeriphDriver/inc",
 							"${project}/RVMSIS",
 							"${project}/src/bsp/Inc",
-							"${project}/components/littlefs",
-							"${project}/components/pikascript/pikascript-api",
-							"${project}/components/pikascript/pikascript-core",
-							"${project}/components/pikascript/pikascript-lib/PikaStdDevice",
-							"${project}/components/pikascript/pikascript-lib/PikaStdLib",
-							"${project}/components/AHEasing",
-							"${project}/components/my-u8g2-ui-toolkit",
-							"${project}/components/my-u8g2-ui-toolkit/UI",
-							"${project}/components/my-u8g2-ui-toolkit/UI/component",
-							"${project}/components/UI_Porting",
-							"${project}/components/WeGui_RGB/Lcd_Driver",
-							"${project}/components/WeGui_RGB/Lcd_WeGui",
-							"${project}/components/WeGui_RGB/CH585/Lcd_Port",
-							"${project}/components/WeGui_RGB/Lcd_Demo",
-							"${project}/BLE_LIB",
-							"${project}/components/BLE_LIB",
-							"${project}/HAL/include",
-							"${project}/Profile/include"
+							"${project}/src/components/pikascript/pikascript-api",
+							"${project}/src/components/pikascript/pikascript-core",
+							"${project}/src/components/pikascript/pikascript-lib/PikaStdDevice",
+							"${project}/src/components/pikascript/pikascript-lib/PikaStdLib",
+							"${project}/src/components/AHEasing",
+							"${project}/src/components/my-u8g2-ui-toolkit",
+							"${project}/src/components/my-u8g2-ui-toolkit/UI",
+							"${project}/src/components/my-u8g2-ui-toolkit/UI/component",
+							"${project}/src/components/UI_Porting",
+							"${project}/src/components/BLE_LIB",
+							"${project}/src/hal/include",
+							"${project}/src/ble_profile/include",
+							"${project}/src/components/littlefs",
+							"${project}/src/middleware/Inc",
+							"${project}/src/app/Inc"
 						],
 						"include_system_paths": [],
 						"include_files": []
@@ -276,8 +273,8 @@
 						],
 						"library_search_path": [
 							"../",
-							"${project}/components/BLE_LIB",
-							"${project}/StdPeriphDriver"
+							"${project}/src/components/BLE_LIB",
+							"${project}/src/hal/StdPeriphDriver"
 						]
 					},
 					"miscellaneous": {
@@ -319,8 +316,8 @@
 						],
 						"library_search_path": [
 							"../",
-							"${project}/components/BLE_LIB",
-							"${project}/StdPeriphDriver"
+							"${project}/src/components/BLE_LIB",
+							"${project}/src/hal/StdPeriphDriver"
 						]
 					},
 					"miscellaneous": {

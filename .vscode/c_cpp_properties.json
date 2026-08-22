@@ -1,0 +1,69 @@
+{
+  "configurations": [
+    {
+      "name": "CH585F_test_print",
+      "compilerArgs": [
+        "-march=rv32imc_zba_zbb_zbc_zbs_xw",
+        "-mabi=ilp32"
+      ],
+      "cStandard": "gnu99",
+      "cppStandard": "gnu++11",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/StdPeriphDriver/inc",
+        "${workspaceFolder}/RVMSIS",
+        "${workspaceFolder}/src/bsp/Inc",
+        "${workspaceFolder}/components/littlefs",
+        "${workspaceFolder}/components/pikascript/pikascript-api",
+        "${workspaceFolder}/components/pikascript/pikascript-core",
+        "${workspaceFolder}/components/pikascript/pikascript-lib/PikaStdDevice",
+        "${workspaceFolder}/components/pikascript/pikascript-lib/PikaStdLib",
+        "${workspaceFolder}/components/AHEasing",
+        "${workspaceFolder}/components/my-u8g2-ui-toolkit",
+        "${workspaceFolder}/components/my-u8g2-ui-toolkit/UI",
+        "${workspaceFolder}/components/my-u8g2-ui-toolkit/UI/component",
+        "${workspaceFolder}/components/UI_Porting",
+        "${workspaceFolder}/components/WeGui_RGB/Lcd_Driver",
+        "${workspaceFolder}/components/WeGui_RGB/Lcd_WeGui",
+        "${workspaceFolder}/components/WeGui_RGB/CH585/Lcd_Port",
+        "${workspaceFolder}/components/WeGui_RGB/Lcd_Demo",
+        "${workspaceFolder}/BLE_LIB",
+        "${workspaceFolder}/components/BLE_LIB",
+        "${workspaceFolder}/HAL/include",
+        "${workspaceFolder}/Profile/include"
+      ],
+      "defines": [
+        "DEBUG=1"
+      ],
+      "browse": {
+        "path": [
+          "${workspaceFolder}",
+          "${workspaceFolder}/**",
+          "${workspaceFolder}/StdPeriphDriver/inc",
+          "${workspaceFolder}/RVMSIS",
+          "${workspaceFolder}/src/bsp/Inc",
+          "${workspaceFolder}/components/littlefs",
+          "${workspaceFolder}/components/pikascript/pikascript-api",
+          "${workspaceFolder}/components/pikascript/pikascript-core",
+          "${workspaceFolder}/components/pikascript/pikascript-lib/PikaStdDevice",
+          "${workspaceFolder}/components/pikascript/pikascript-lib/PikaStdLib",
+          "${workspaceFolder}/components/AHEasing",
+          "${workspaceFolder}/components/my-u8g2-ui-toolkit",
+          "${workspaceFolder}/components/my-u8g2-ui-toolkit/UI",
+          "${workspaceFolder}/components/my-u8g2-ui-toolkit/UI/component",
+          "${workspaceFolder}/components/UI_Porting",
+          "${workspaceFolder}/components/WeGui_RGB/Lcd_Driver",
+          "${workspaceFolder}/components/WeGui_RGB/Lcd_WeGui",
+          "${workspaceFolder}/components/WeGui_RGB/CH585/Lcd_Port",
+          "${workspaceFolder}/components/WeGui_RGB/Lcd_Demo",
+          "${workspaceFolder}/BLE_LIB",
+          "${workspaceFolder}/components/BLE_LIB",
+          "${workspaceFolder}/HAL/include",
+          "${workspaceFolder}/Profile/include"
+        ],
+        "limitSymbolsToIncludedHeaders": true
+      }
+    }
+  ],
+  "version": 4
+}

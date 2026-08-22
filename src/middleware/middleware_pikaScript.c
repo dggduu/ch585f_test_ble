@@ -1,4 +1,4 @@
-#include "bsp_pikaScript.h"
+#include "middleware_pikaScript.h"
 
 #if PIKASCRIPT_ENABLE
 
