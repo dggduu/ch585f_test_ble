@@ -6,7 +6,7 @@ void bsp_spi_init(void) {
     GPIOA_ModeCfg(GPIO_Pin_13 | GPIO_Pin_14, GPIO_ModeOut_PP_5mA);
     GPIOA_ModeCfg(GPIO_Pin_15, GPIO_ModeIN_PU);
     SPI0_MasterDefInit();
-    // SPI0_CLKCfg(2);
+    SPI0_CLKCfg(2);
     SPI0_DataMode(Mode0_HighBitINFront);
     
 }
@@ -34,7 +34,17 @@ void bsp_spi_transfer(uint8_t *tx, uint8_t *rx, uint16_t len) {
     }
 }
 
-// 仅供发送（LCD 专用，更高效）
+
 void bsp_spi_send_bulk(uint8_t *data, uint16_t len) {
-    SPI0_MasterTrans(data, len);
+    // 确保源地址4字节对齐，否则死循环（调试时可加打印）
+    if ((uint32_t)data & 0x03) {
+        while (1);  // 或者调用非DMA方式作为后备
+    }
+    const uint16_t MAX_DMA = 4095;
+    while (len > 0) {
+        uint16_t chunk = (len > MAX_DMA) ? MAX_DMA : len;
+        SPI0_MasterDMATrans(data, chunk);
+        data += chunk;
+        len -= chunk;
+    }
 }

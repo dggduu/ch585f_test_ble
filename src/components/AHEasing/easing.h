@@ -99,6 +99,7 @@ AHFloat BounceEaseIn(AHFloat p);
 AHFloat BounceEaseOut(AHFloat p);
 AHFloat BounceEaseInOut(AHFloat p);
 
+
 #ifdef __cplusplus
 }
 #endif

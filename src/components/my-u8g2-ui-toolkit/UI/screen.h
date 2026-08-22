@@ -62,29 +62,29 @@ static inline void screen_draw_str(u8g2_t *u8g2, uint16_t x, uint16_t y, const c
 }
 
 // ===================== 默认屏幕配置 =====================
-#define DEFAULT_SCREEN_CONFIG                                                  \
-  {                                                                            \
-      .width = 240,                 /* 屏幕宽度 */                             \
-      .height = 240,                 /* 屏幕高度 */                             \
-      .font = u8g2_font_6x10_tf, /* 使用的字体 */       \
-	  .sub_window_font = u8g2_font_5x7_tf,										\
-	  .icon_font = u8g2_font_open_iconic_all_4x_t, \
-      .font_height = 10,            /* 字体高度 */                             \
-      .font_baseline = 10,          /* 字体基线 */                             \
-      .is_utf8 = false,              /* UTF8启用标志 */       \
-      .draw_text = screen_draw_str,/* 文字绘制回调 */           \
-      .title_left_margin = 13,      /* 标题左侧边距 */                         \
-      .right_item_margin = 5,       /* 右侧元素右侧边距 */                     \
-      .right_item_left_padding = 8, /* 右侧元素左侧内边距 */                   \
-      .scroll_pause_ticks = 200,    /* 滚动停顿200ms */                        \
-      .scroll_speed_divisor = 4,    /* 滚动速度除数 */                         \
-      .animation_duration = 1,     /* 动画时长12tick */                       \
-      .highlight_padding = 15,      /* 高亮框内边距 */                         \
-      .highlight_height = 13,       /* 高亮框高度 */                           \
-	  .hightlight_radius = 3,													\
-      .click_switch_width = 10,     /* CLICK开关宽度 */                        \
-      .action_width = 0,            /* ACTION类型无右侧元素 */                 \
-      .num_min_width = 30           /* NUM类型最小宽度 */                      \
+#define DEFAULT_SCREEN_CONFIG                                                 \
+  {                                                                           \
+      .width = 240,                  /* 屏幕宽度 */                           \
+      .height = 240,                 /* 屏幕高度 */                           \
+      .font = u8g2_font_6x10_tf,     /* 默认文本字体 */                       \
+      .sub_window_font = u8g2_font_5x7_tf,                                    \
+      .icon_font = u8g2_font_open_iconic_all_4x_t,                            \
+      .font_height = 10,             /* 字体高度 */                           \
+      .font_baseline = 8,            /* 调整为标准的 8px 基线 */               \
+      .is_utf8 = false,              /* UTF8 标志 */                          \
+      .draw_text = screen_draw_str,  /* 文本绘制函数 */                       \
+      .title_left_margin = 13,                                                \
+      .right_item_margin = 8,                                                 \
+      .right_item_left_padding = 8,                                           \
+      .scroll_pause_ticks = 300,     /* 长文本滚动手感：停顿 300ms */           \
+      .scroll_speed_divisor = 3,     /* 长文本滚动速度步长 */                 \
+      .animation_duration = 10,     /* [关键修复] 高亮框过渡 120ms (约 6~8 帧) */\
+      .highlight_padding = 8,        /* 高亮框内边距 */                       \
+      .highlight_height = 12,        /* 高亮框高度 */                         \
+      .hightlight_radius = 2,        /* 圆角半径：减少单片机 RBox 弧度计算 */    \
+      .click_switch_width = 10,                                               \
+      .action_width = 0,                                                      \
+      .num_min_width = 30                                                     \
   }
 
 // 全局屏幕配置实例

@@ -52,7 +52,7 @@ typedef struct {
   void *portal_ctx;
   bool is_portal_running;
   bool is_exiting;
-  float ani_progress;
+  int16_t ani_progress;
 } page_stack_t;
 
 extern page_stack_t g_page_stack; // 全局页面栈实例

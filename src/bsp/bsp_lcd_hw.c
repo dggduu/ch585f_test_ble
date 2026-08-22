@@ -188,24 +188,54 @@ void Lcd_Init(void)
 
 // 发送一块颜色数据（连续 count 个像素，每个像素 16 位）
 // 该函数会先设置 CS=0, DC=1，发送完后恢复 CS=1
-static void LCD_WriteDataBlock(uint16_t color, uint32_t count)
-{
+// static void LCD_WriteDataBlock(uint16_t color, uint32_t count)
+// {
+//     if (count == 0) return;
+
+//     uint8_t hi = color >> 8;
+//     uint8_t lo = color & 0xFF;
+
+//     // 只切换一次 CS 和 DC
+//     SCREEN_CS_CLR();
+//     SCREEN_DC_SET();
+
+//     // 为了提高效率，可以将颜色字节对填充到一个缓冲区，然后一次发送
+//     // 这里使用一个较小的静态缓冲区，避免占用过多栈空间
+//     static uint8_t buf[64];  // 32 像素 * 2 字节 = 64 字节
+//     uint32_t i = 0;
+//     while (i < count) {
+//         uint32_t chunk = count - i;
+//         if (chunk > 32) chunk = 32;  // 每次发送 32 个像素
+
+//         // 填充缓冲区
+//         uint16_t idx = 0;
+//         for (uint32_t j = 0; j < chunk; j++) {
+//             buf[idx++] = hi;
+//             buf[idx++] = lo;
+//         }
+
+//         bsp_spi_send_bulk(buf, chunk * 2);
+//         i += chunk;
+//     }
+
+//     SCREEN_CS_SET();
+// }
+
+static void LCD_WriteDataBlock(uint16_t color, uint32_t count) {
     if (count == 0) return;
 
     uint8_t hi = color >> 8;
     uint8_t lo = color & 0xFF;
 
-    // 只切换一次 CS 和 DC
     SCREEN_CS_CLR();
     SCREEN_DC_SET();
 
-    // 为了提高效率，可以将颜色字节对填充到一个缓冲区，然后一次发送
-    // 这里使用一个较小的静态缓冲区，避免占用过多栈空间
-    static uint8_t buf[64];  // 32 像素 * 2 字节 = 64 字节
+    // 使用更大的静态缓冲区，并强制对齐
+    static __attribute__((aligned(4))) uint8_t buf[256]; // 128像素
     uint32_t i = 0;
     while (i < count) {
         uint32_t chunk = count - i;
-        if (chunk > 32) chunk = 32;  // 每次发送 32 个像素
+        if (chunk > 128) chunk = 128;
 
         // 填充缓冲区
         uint16_t idx = 0;
@@ -213,7 +243,6 @@ static void LCD_WriteDataBlock(uint16_t color, uint32_t count)
             buf[idx++] = hi;
             buf[idx++] = lo;
         }
-
         bsp_spi_send_bulk(buf, chunk * 2);
         i += chunk;
     }

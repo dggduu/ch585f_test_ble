@@ -85,16 +85,16 @@ static void uart_btn_process(void) {
 
 int main() {
   bsp_borad_init();
-    CH58x_BLEInit();
-    HAL_Init();
-    GAPRole_BroadcasterInit();
-    Broadcaster_Init();
+    // CH58x_BLEInit();
+    
+    // GAPRole_BroadcasterInit();
+    // Broadcaster_Init();
   app_splash_screen_entry();
   while (1) {
     BSP_Timer_Tick(); 
     uart_btn_process();
     btn_type_t btn = btn_fifo_pop();
     page_update(&g_page_stack, btn);
-    Main_Circulation();
+    // Main_Circulation();
   }
 }

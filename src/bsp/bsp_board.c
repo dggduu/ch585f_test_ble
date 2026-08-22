@@ -9,7 +9,7 @@
 #include "bsp_uart.h"
 #include "u8g2_porting.h"
 #include "u8g2.h"
-
+#include "HAL.h"
 /**
  * @brief bsp_borad_init
  * 
@@ -20,10 +20,13 @@ uint8_t bsp_borad_init(){
     HSECFG_Capacitance(HSECap_18p);
     SetSysClock(SYSCLK_FREQ);
 
+    
+    // HAL_Init();
+
     /* 2. 调试串口初始化（UART0，PB4/PB7，115200） */
     BSP_UART_Init(115200);
 
-    // BSP_Timer_Init();
+    BSP_Timer_Init();
     // bsp_timer_id_t timer1 = BSP_Timer_Create(500, true, my_timer_cb, NULL);
     // BSP_Timer_Start(timer1);
 
