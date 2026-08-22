@@ -87,20 +87,20 @@ void hlist_draw(u8g2_t *u8g2, void *ctx) {
     int start_y = (screen_cfg->height - total_content_h) / 2;
     int icon_y = start_y;
 
-    // 2. 绘制图标
-    for (int i = 0; i < hl->count; i++) {
-        // x 坐标基于 Q8 定点数计算
-        int x = screen_mid + ((( (i << 8) - ease_idx_q8 ) * icon_gap) >> 8) - (ICON_WIDTH / 2);
+    // // 2. 绘制图标
+    // for (int i = 0; i < hl->count; i++) {
+    //     // x 坐标基于 Q8 定点数计算
+    //     int x = screen_mid + ((( (i << 8) - ease_idx_q8 ) * icon_gap) >> 8) - (ICON_WIDTH / 2);
         
-        if (x < -ICON_WIDTH || x > screen_cfg->width) continue;
+    //     if (x < -ICON_WIDTH || x > screen_cfg->width) continue;
 
-        if (hl->items[i].icon_type == ICON_TYPE_XBM) {
-            u8g2_DrawXBM(u8g2, x, icon_y, ICON_WIDTH, ICON_HEIGHT, hl->items[i].icon_data.xbm);
-        } else {
-            u8g2_SetFont(u8g2, g_screen_cfg.icon_font);
-            u8g2_DrawGlyph(u8g2, x + 2, icon_y + ICON_HEIGHT, hl->items[i].icon_data.glyph);
-        }
-    }
+    //     if (hl->items[i].icon_type == ICON_TYPE_XBM) {
+    //         u8g2_DrawXBM(u8g2, x, icon_y, ICON_WIDTH, ICON_HEIGHT, hl->items[i].icon_data.xbm);
+    //     } else {
+    //         u8g2_SetFont(u8g2, g_screen_cfg.icon_font);
+    //         u8g2_DrawGlyph(u8g2, x + 2, icon_y + ICON_HEIGHT, hl->items[i].icon_data.glyph);
+    //     }
+    // }
 
     // 3. 绘制标题文字
     u8g2_SetFont(u8g2, HLIST_TEXT_FONT);

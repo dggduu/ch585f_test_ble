@@ -45,7 +45,7 @@ static void my_splash_draw(u8g2_t *u8g2, const Screen_t *screen_cfg) {
   tick_count++;
 
   // 电量绘制
-  u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
+  u8g2_SetFont(u8g2, u8g2_font_6x10_tr);
   u8g2_DrawFrame(u8g2, screen_cfg->width - 20, 2, 18, 10);
   u8g2_DrawBox(u8g2, screen_cfg->width - 18, 4, 14, 6);
   u8g2_DrawStr(u8g2, screen_cfg->width - 40, 10, "80%");
@@ -54,13 +54,13 @@ static void my_splash_draw(u8g2_t *u8g2, const Screen_t *screen_cfg) {
   uint8_t hour = 12, min = 30, sec = (tick_count / 10) % 60;
   char time_str[10];
   sprintf(time_str, "%02d:%02d:%02d", hour, min, sec);
-  u8g2_SetFont(u8g2, u8g2_font_logisoso20_tn);
+  u8g2_SetFont(u8g2, u8g2_font_inr19_mr);
   int time_width = u8g2_GetStrWidth(u8g2, time_str);
     ui_draw_str((screen_cfg->width - time_width) / 2,
                 screen_cfg->height / 2 + 10, time_str, U8G2_COLOR_YELLOW);
 
   // 提示文字
-  u8g2_SetFont(u8g2, u8g2_font_5x7_tf);
+  u8g2_SetFont(u8g2, u8g2_font_6x10_tr);
   const char *hint = "Press any btn to enter";
   ui_draw_str((screen_cfg->width - u8g2_GetStrWidth(u8g2, hint)) / 2,
                screen_cfg->height - 5, hint,UI_COLOR_MAGENTA);
@@ -78,7 +78,7 @@ static void osc_app_draw(u8g2_t *u8g2, void *ctx) {
   static uint8_t wave_offset = 0;
   wave_offset = (wave_offset + 1) % 255;
 
-  u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
+  u8g2_SetFont(u8g2, u8g2_font_6x10_tr);
   u8g2_DrawStr(u8g2, 2, 12, "OSCILLOSCOPE");
   u8g2_DrawHLine(u8g2, 0, 15, 128);
 
@@ -202,7 +202,8 @@ static void ui_menu_init(void) {
 
 
 void app_splash_screen_entry() {
-  splash_log_init(&u8g2, g_screen_cfg.font_height, u8g2_font_5x7_tf);
+  splash_log_init(&u8g2, g_screen_cfg.font_height, u8g2_font_6x10_tr);
+  u8g2_SetDrawColor(&u8g2,UI_COLOR_YELLOW);
   splash_log_clear();
   splash_log_printf("splash_log inited");
   splash_log_printf("btn_fifo inited");
@@ -216,6 +217,8 @@ void app_splash_screen_entry() {
   splash_log_printf("  //_,)/       Toolkit");
   splash_log_printf("ready to test clear");
   splash_log_clear();
+  mDelaymS(2000);
+  u8g2_SetDrawColor(&u8g2,UI_COLOR_WHITE);
   // 上面这些可以去掉
   page_stack_init(&g_page_stack, &u8g2);
   ui_menu_init();

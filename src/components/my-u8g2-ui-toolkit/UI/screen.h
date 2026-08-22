@@ -66,14 +66,14 @@ static inline void screen_draw_str(u8g2_t *u8g2, uint16_t x, uint16_t y, const c
   {                                                                           \
       .width = 240,                  /* 屏幕宽度 */                           \
       .height = 240,                 /* 屏幕高度 */                           \
-      .font = u8g2_font_6x10_tf,     /* 默认文本字体 */                       \
-      .sub_window_font = u8g2_font_5x7_tf,                                    \
-      .icon_font = u8g2_font_open_iconic_all_4x_t,                            \
-      .font_height = 10,             /* 字体高度 */                           \
+      .font = u8g2_font_8x13_tr,     /* 默认文本字体 */                       \
+      .sub_window_font = u8g2_font_6x10_tr,                                    \
+      .icon_font = NULL,                            \
+      .font_height = 13,             /* 字体高度 */                           \
       .font_baseline = 8,            /* 调整为标准的 8px 基线 */               \
       .is_utf8 = false,              /* UTF8 标志 */                          \
       .draw_text = screen_draw_str,  /* 文本绘制函数 */                       \
-      .title_left_margin = 13,                                                \
+      .title_left_margin = 16,                                                \
       .right_item_margin = 8,                                                 \
       .right_item_left_padding = 8,                                           \
       .scroll_pause_ticks = 300,     /* 长文本滚动手感：停顿 300ms */           \
@@ -81,7 +81,7 @@ static inline void screen_draw_str(u8g2_t *u8g2, uint16_t x, uint16_t y, const c
       .animation_duration = 10,     /* [关键修复] 高亮框过渡 120ms (约 6~8 帧) */\
       .highlight_padding = 8,        /* 高亮框内边距 */                       \
       .highlight_height = 12,        /* 高亮框高度 */                         \
-      .hightlight_radius = 2,        /* 圆角半径：减少单片机 RBox 弧度计算 */    \
+      .hightlight_radius = 1,        /* 圆角半径：减少单片机 RBox 弧度计算 */    \
       .click_switch_width = 10,                                               \
       .action_width = 0,                                                      \
       .num_min_width = 30                                                     \

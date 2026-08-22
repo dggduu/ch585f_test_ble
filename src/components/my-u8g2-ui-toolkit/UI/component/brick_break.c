@@ -199,7 +199,7 @@ static void brick_break_draw(u8g2_t *u8g2, void *ctx) {
     }
     
     // ========== 绘制操作提示 ==========
-    u8g2_SetFont(u8g2, u8g2_font_5x7_tf);
+    u8g2_SetFont(u8g2, u8g2_font_6x10_tr);
     const char *hint_text = "LEFT/RIGHT:Move  BACK:Exit";
     uint8_t hint_width = u8g2_GetStrWidth(u8g2, hint_text);
     u8g2_DrawStr(u8g2, (screen->width - hint_width) / 2, 

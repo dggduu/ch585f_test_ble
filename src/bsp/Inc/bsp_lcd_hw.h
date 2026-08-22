@@ -44,10 +44,10 @@ void LCD_DrawRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint1
 void Draw_Circle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color);
 
 // ×Ö·û/×Ö·û´®ÏÔÊ¾
-void LCD_ShowChar(uint16_t x, uint16_t y, uint8_t num, uint8_t mode, uint16_t color);
-void LCD_ShowString(uint16_t x, uint16_t y, const uint8_t *p, uint16_t color);
-void LCD_ShowNum(uint16_t x, uint16_t y, uint16_t num, uint8_t len, uint16_t color);
-void LCD_ShowNum1(uint16_t x, uint16_t y, float num, uint8_t len, uint16_t color);
+// void LCD_ShowChar(uint16_t x, uint16_t y, uint8_t num, uint8_t mode, uint16_t color);
+// void LCD_ShowString(uint16_t x, uint16_t y, const uint8_t *p, uint16_t color);
+// void LCD_ShowNum(uint16_t x, uint16_t y, uint16_t num, uint8_t len, uint16_t color);
+// void LCD_ShowNum1(uint16_t x, uint16_t y, float num, uint8_t len, uint16_t color);
 
 // ²âÊÔÍ¼°¸
 void LCD_DispBand(void);

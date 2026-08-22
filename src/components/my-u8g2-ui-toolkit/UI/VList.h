@@ -10,7 +10,7 @@
 
 // ========== ≈‰÷√œÓ  ==========
 #define MAX_LIST_ITEMS 16
-#define VLIST_ITEM_H 14
+#define VLIST_ITEM_H 18
 #define VLIST_ANIM_FUC QuadraticEaseOut
 
 extern const Screen_t g_screen_cfg;

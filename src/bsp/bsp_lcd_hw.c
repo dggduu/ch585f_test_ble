@@ -384,56 +384,56 @@ void Draw_Circle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color)
     }
 }
 
-void LCD_ShowChar(uint16_t x, uint16_t y, uint8_t num, uint8_t mode, uint16_t color)
-{
-    uint8_t temp, pos, t;
-    if (x > LCD_W - 16 || y > LCD_H - 16) return;
+// void LCD_ShowChar(uint16_t x, uint16_t y, uint8_t num, uint8_t mode, uint16_t color)
+// {
+//     uint8_t temp, pos, t;
+//     if (x > LCD_W - 16 || y > LCD_H - 16) return;
 
-    num -= ' ';
-    LCD_Address_Set(x, y, x + 8 - 1, y + 16 - 1);
+//     num -= ' ';
+//     LCD_Address_Set(x, y, x + 8 - 1, y + 16 - 1);
 
-    if (!mode) {   // 非叠加模式
-        // 缓冲区：16 行 × 8 列 × 2 字节 = 256 字节
-        static uint8_t charBuf[256];
-        uint16_t idx = 0;
+//     if (!mode) {   // 非叠加模式
+//         // 缓冲区：16 行 × 8 列 × 2 字节 = 256 字节
+//         static uint8_t charBuf[256];
+//         uint16_t idx = 0;
 
-        for (pos = 0; pos < 16; pos++) {
-            temp = asc2_1608[(uint16_t)num * 16 + pos];
-            for (t = 0; t < 8; t++) {
-                uint16_t c = (temp & 0x01) ? color : BACK_COLOR;
-                charBuf[idx++] = c >> 8;
-                charBuf[idx++] = c & 0xFF;
-                temp >>= 1;
-            }
-        }
+//         for (pos = 0; pos < 16; pos++) {
+//             temp = asc2_1608[(uint16_t)num * 16 + pos];
+//             for (t = 0; t < 8; t++) {
+//                 uint16_t c = (temp & 0x01) ? color : BACK_COLOR;
+//                 charBuf[idx++] = c >> 8;
+//                 charBuf[idx++] = c & 0xFF;
+//                 temp >>= 1;
+//             }
+//         }
 
-        // 切换 CS/DC 一次，发送所有数据
-        SCREEN_CS_CLR();
-        SCREEN_DC_SET();
-        bsp_spi_send_bulk(charBuf, 256);
-        SCREEN_CS_SET();
-    } else {      // 叠加模式：逐点画（使用原有方式，但也可优化）
-        for (pos = 0; pos < 16; pos++) {
-            temp = asc2_1608[(uint16_t)num * 16 + pos];
-            for (t = 0; t < 8; t++) {
-                if (temp & 0x01) LCD_DrawPoint(x + t, y + pos, color);
-                temp >>= 1;
-            }
-        }
-    }
-}
+//         // 切换 CS/DC 一次，发送所有数据
+//         SCREEN_CS_CLR();
+//         SCREEN_DC_SET();
+//         bsp_spi_send_bulk(charBuf, 256);
+//         SCREEN_CS_SET();
+//     } else {      // 叠加模式：逐点画（使用原有方式，但也可优化）
+//         for (pos = 0; pos < 16; pos++) {
+//             temp = asc2_1608[(uint16_t)num * 16 + pos];
+//             for (t = 0; t < 8; t++) {
+//                 if (temp & 0x01) LCD_DrawPoint(x + t, y + pos, color);
+//                 temp >>= 1;
+//             }
+//         }
+//     }
+// }
 
-// 显示字符串
-void LCD_ShowString(uint16_t x, uint16_t y, const uint8_t *p, uint16_t color)
-{
-    while (*p != '\0') {
-        if (x > LCD_W - 16) { x = 0; y += 16; }
-        if (y > LCD_H - 16) { y = x = 0; LCD_Clear(LCD_RED); }
-        LCD_ShowChar(x, y, *p, 0, color);
-        x += 8;
-        p++;
-    }
-}
+// // 显示字符串
+// void LCD_ShowString(uint16_t x, uint16_t y, const uint8_t *p, uint16_t color)
+// {
+//     while (*p != '\0') {
+//         if (x > LCD_W - 16) { x = 0; y += 16; }
+//         if (y > LCD_H - 16) { y = x = 0; LCD_Clear(LCD_RED); }
+//         LCD_ShowChar(x, y, *p, 0, color);
+//         x += 8;
+//         p++;
+//     }
+// }
 
 // 计算10的幂
 static uint32_t mypow(uint8_t m, uint8_t n)
@@ -443,39 +443,39 @@ static uint32_t mypow(uint8_t m, uint8_t n)
     return result;
 }
 
-// 显示整数
-void LCD_ShowNum(uint16_t x, uint16_t y, uint16_t num, uint8_t len, uint16_t color)
-{
-    uint8_t t, temp;
-    uint8_t enshow = 0;
-    for (t = 0; t < len; t++) {
-        temp = (num / mypow(10, len - t - 1)) % 10;
-        if (enshow == 0 && t < (len - 1)) {
-            if (temp == 0) {
-                LCD_ShowChar(x + 8 * t, y, ' ', 0, color);
-                continue;
-            } else enshow = 1;
-        }
-        LCD_ShowChar(x + 8 * t, y, temp + '0', 0, color);
-    }
-}
+// // 显示整数
+// void LCD_ShowNum(uint16_t x, uint16_t y, uint16_t num, uint8_t len, uint16_t color)
+// {
+//     uint8_t t, temp;
+//     uint8_t enshow = 0;
+//     for (t = 0; t < len; t++) {
+//         temp = (num / mypow(10, len - t - 1)) % 10;
+//         if (enshow == 0 && t < (len - 1)) {
+//             if (temp == 0) {
+//                 LCD_ShowChar(x + 8 * t, y, ' ', 0, color);
+//                 continue;
+//             } else enshow = 1;
+//         }
+//         LCD_ShowChar(x + 8 * t, y, temp + '0', 0, color);
+//     }
+// }
 
-// 显示小数（保留两位）
-void LCD_ShowNum1(uint16_t x, uint16_t y, float num, uint8_t len, uint16_t color)
-{
-    uint8_t t, temp;
-    uint8_t enshow = 0;
-    uint16_t num1 = (uint16_t)(num * 100);
-    for (t = 0; t < len; t++) {
-        temp = (num1 / mypow(10, len - t - 1)) % 10;
-        if (t == (len - 2)) {
-            LCD_ShowChar(x + 8 * (len - 2), y, '.', 0, color);
-            t++;
-            len++;
-        }
-        LCD_ShowChar(x + 8 * t, y, temp + '0', 0, color);
-    }
-}
+// // 显示小数（保留两位）
+// void LCD_ShowNum1(uint16_t x, uint16_t y, float num, uint8_t len, uint16_t color)
+// {
+//     uint8_t t, temp;
+//     uint8_t enshow = 0;
+//     uint16_t num1 = (uint16_t)(num * 100);
+//     for (t = 0; t < len; t++) {
+//         temp = (num1 / mypow(10, len - t - 1)) % 10;
+//         if (t == (len - 2)) {
+//             LCD_ShowChar(x + 8 * (len - 2), y, '.', 0, color);
+//             t++;
+//             len++;
+//         }
+//         LCD_ShowChar(x + 8 * t, y, temp + '0', 0, color);
+//     }
+// }
 
 
 // 显示彩条

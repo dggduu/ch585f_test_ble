@@ -194,7 +194,8 @@
 							"${project}/src/components/littlefs",
 							"${project}/src/middleware/Inc",
 							"${project}/src/app/Inc",
-							"${project}/src/task/Inc"
+							"${project}/src/task/Inc",
+							"${project}/src/components/fatfs"
 						],
 						"include_system_paths": [],
 						"include_files": []

@@ -254,11 +254,9 @@ u8g2_uint_t ui_draw_utf8(u8g2_uint_t x, u8g2_uint_t y, const char *str,
                          uint8_t color);
 
 /* ==================== 内置字体（u8g2 原版字体表，见 u8g2_fonts.c） ==================== */
-extern const uint8_t u8g2_font_5x7_tf[];
-extern const uint8_t u8g2_font_6x10_tf[];
+extern const uint8_t u8g2_font_inr19_mr[];
 extern const uint8_t u8g2_font_8x13_tr[];
-extern const uint8_t u8g2_font_logisoso20_tn[];
-extern const uint8_t u8g2_font_open_iconic_all_4x_t[];
+extern const uint8_t u8g2_font_6x10_tr[];
 
 #ifdef __cplusplus
 }
