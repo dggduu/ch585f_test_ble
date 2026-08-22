@@ -102,5 +102,13 @@
         <arguments>1.0-name-matches-false-false-uart.c</arguments>
       </matcher>
     </filter>
+    <filter>
+      <name>components/my-u8g2-ui-toolkit</name>
+      <type>6</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-main.c</arguments>
+      </matcher>
+    </filter>
   </filteredResources>
 </projectDescription>

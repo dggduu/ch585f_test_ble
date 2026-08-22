@@ -68,6 +68,11 @@
 				"parentLogicPath": "components/my-u8g2-ui-toolkit",
 				"type": "file",
 				"name": "uart.c"
+			},
+			{
+				"parentLogicPath": "components/my-u8g2-ui-toolkit",
+				"type": "file",
+				"name": "main.c"
 			}
 		],
 		"projectName": "CH585F_test_print",
@@ -187,7 +192,11 @@
 							"${project}/components/WeGui_RGB/Lcd_Driver",
 							"${project}/components/WeGui_RGB/Lcd_WeGui",
 							"${project}/components/WeGui_RGB/CH585/Lcd_Port",
-							"${project}/components/WeGui_RGB/Lcd_Demo"
+							"${project}/components/WeGui_RGB/Lcd_Demo",
+							"${project}/BLE_LIB",
+							"${project}/components/BLE_LIB",
+							"${project}/HAL/include",
+							"${project}/Profile/include"
 						],
 						"include_system_paths": [],
 						"include_files": []
@@ -262,10 +271,12 @@
 					},
 					"libraries": {
 						"libraries": [
-							"ISP585"
+							"ISP585",
+							"CH58xBLE"
 						],
 						"library_search_path": [
 							"../",
+							"${project}/components/BLE_LIB",
 							"${project}/StdPeriphDriver"
 						]
 					},
@@ -303,10 +314,12 @@
 					},
 					"libraries": {
 						"libraries": [
-							"ISP585"
+							"ISP585",
+							"CH58xBLE"
 						],
 						"library_search_path": [
 							"../",
+							"${project}/components/BLE_LIB",
 							"${project}/StdPeriphDriver"
 						]
 					},

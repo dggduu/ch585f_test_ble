@@ -221,7 +221,7 @@
 //   uart_init();
 //   btn_fifo_init();
 //   IIC_Init();
-//   u8g2Init(&u8g2);
+//   u8g2Init(&ug2);
 
 //   // 这一段可以直接去掉
 //   splash_log_init(&u8g2, g_screen_cfg.font_height, u8g2_font_5x7_tf);
